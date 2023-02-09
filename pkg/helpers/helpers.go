@@ -1,9 +1,12 @@
 package helpers
 
 import (
+	"golang.org/x/exp/slices"
 	"net/url"
 	"path"
 )
+
+var validSchemas = []string{"https", "http"}
 
 func UrlJoin(baseUrl string, elem ...string) (result string, err error) {
 	u, err := url.Parse(baseUrl)
@@ -17,4 +20,15 @@ func UrlJoin(baseUrl string, elem ...string) (result string, err error) {
 	}
 
 	return u.String(), nil
+}
+
+func IsValidHttpUrl(rawUrl string) bool {
+	parsedUrl, err := url.ParseRequestURI(rawUrl)
+	if parsedUrl == nil {
+		return false
+	}
+	if err != nil || !slices.Contains(validSchemas, parsedUrl.Scheme) {
+		return false
+	}
+	return true
 }

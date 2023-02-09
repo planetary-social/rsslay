@@ -27,3 +27,47 @@ func TestJoinWithValidUrlAndExtraElementsReturnsValidUrl(t *testing.T) {
 	assert.Equal(t, expectedJoinResult, join)
 	assert.NoError(t, err)
 }
+
+func TestIsValidUrl(t *testing.T) {
+	testCases := []struct {
+		rawUrl        string
+		expectedValid bool
+	}{
+		{
+			rawUrl:        "hi/there?",
+			expectedValid: false,
+		},
+		{
+			rawUrl:        "http://golang.cafe/",
+			expectedValid: true,
+		},
+		{
+			rawUrl:        "http://golang.org/index.html?#page1",
+			expectedValid: true,
+		},
+		{
+			rawUrl:        "golang.org",
+			expectedValid: false,
+		},
+		{
+			rawUrl:        "https://golang.cafe/",
+			expectedValid: true,
+		},
+		{
+			rawUrl:        "wss://nostr.moe",
+			expectedValid: false,
+		},
+		{
+			rawUrl:        "ftp://nostr.moe",
+			expectedValid: false,
+		},
+	}
+	for _, tc := range testCases {
+		isValid := IsValidHttpUrl(tc.rawUrl)
+		if tc.expectedValid {
+			assert.True(t, isValid)
+		} else {
+			assert.False(t, isValid)
+		}
+	}
+}

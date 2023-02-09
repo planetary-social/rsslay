@@ -8,6 +8,7 @@ import (
 	"github.com/nbd-wtf/go-nostr/nip05"
 	"github.com/nbd-wtf/go-nostr/nip19"
 	"github.com/piraces/rsslay/pkg/feed"
+	"github.com/piraces/rsslay/pkg/helpers"
 	"github.com/piraces/rsslay/web/assets"
 	"github.com/piraces/rsslay/web/templates"
 	"html/template"
@@ -56,12 +57,12 @@ func HandleWebpage(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer rows.Close()
+
 	for rows.Next() {
 		var entry Entry
 		if err := rows.Scan(&entry.PubKey, &entry.Url); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+			log.Printf("failed to scan row iterating feeds: %v", err)
+			continue
 		}
 
 		entry.NPubKey, _ = nip19.EncodePublicKey(entry.PubKey)
@@ -106,12 +107,12 @@ func HandleSearch(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer rows.Close()
+
 	for rows.Next() {
 		var entry Entry
 		if err := rows.Scan(&entry.PubKey, &entry.Url); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+			log.Printf("failed to scan row iterating feeds searching: %v", err)
+			continue
 		}
 
 		entry.NPubKey, _ = nip19.EncodePublicKey(entry.PubKey)
@@ -241,6 +242,15 @@ func createFeedEntry(r *http.Request, db *sql.DB, secret *string) *Entry {
 	entry := Entry{
 		Error: false,
 	}
+
+	if !helpers.IsValidHttpUrl(urlParam) {
+		log.Printf("retrieved invalid url from database %q, deleting...", urlParam)
+		entry.ErrorCode = http.StatusBadRequest
+		entry.Error = true
+		entry.ErrorMessage = "Invalid URL provided (must be in absolute format and with https or https scheme)..."
+		return &entry
+	}
+
 	feedUrl := feed.GetFeedURL(urlParam)
 	if feedUrl == "" {
 		entry.ErrorCode = http.StatusBadRequest

@@ -1,6 +1,7 @@
 package feed
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
@@ -166,7 +167,7 @@ func TestParseFeedWithCachedUrlReturnsCachedParsedFeed(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestFeedToSetMetadata(t *testing.T) {
+func TestEntryFeedToSetMetadata(t *testing.T) {
 	testCases := []struct {
 		pubKey                   string
 		feed                     *gofeed.Feed
@@ -190,7 +191,7 @@ func TestFeedToSetMetadata(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		metadata := FeedToSetMetadata(tc.pubKey, tc.feed, tc.originalUrl, tc.enableAutoRegistration, tc.defaultProfilePictureUrl)
+		metadata := EntryFeedToSetMetadata(tc.pubKey, tc.feed, tc.originalUrl, tc.enableAutoRegistration, tc.defaultProfilePictureUrl)
 		assert.NotEmpty(t, metadata)
 		assert.Equal(t, samplePubKey, metadata.PubKey)
 		assert.Equal(t, 0, metadata.Kind)
@@ -262,10 +263,15 @@ func TestDeleteExistingInvalidFeed(t *testing.T) {
 	if err != nil {
 		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
 	}
-	defer db.Close()
+	defer func(db *sql.DB) {
+		err := db.Close()
+		if err != nil {
+			t.Fatalf("an error '%s' was not expected when closing a stub database connection", err)
+		}
+	}(db)
 
 	mock.ExpectExec("DELETE FROM feeds").WillReturnResult(sqlmock.NewResult(0, 1))
-	mock.ExpectCommit()
+	mock.ExpectClose()
 	DeleteInvalidFeed(sampleUrlForPublicKey, db)
 }
 
@@ -274,9 +280,14 @@ func TestDeleteNonExistingInvalidFeed(t *testing.T) {
 	if err != nil {
 		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
 	}
-	defer db.Close()
+	defer func(db *sql.DB) {
+		err := db.Close()
+		if err != nil {
+			t.Fatalf("an error '%s' was not expected when closing a stub database connection", err)
+		}
+	}(db)
 
 	mock.ExpectExec("DELETE FROM feeds").WillReturnError(errors.New(""))
-	mock.ExpectCommit()
+	mock.ExpectClose()
 	DeleteInvalidFeed(sampleUrlForPublicKey, db)
 }

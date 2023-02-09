@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
 	strip "github.com/grokify/html-strip-tags-go"
@@ -24,6 +25,12 @@ var (
 	fp        = gofeed.NewParser()
 	feedCache = cache2go.New(512, time.Minute*19)
 	client    = &http.Client{
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if len(via) >= 2 {
+				return errors.New("stopped after 2 redirects")
+			}
+			return nil
+		},
 		Timeout: 5 * time.Second,
 	}
 )
@@ -95,7 +102,7 @@ func ParseFeed(url string) (*gofeed.Feed, error) {
 	return feed, nil
 }
 
-func FeedToSetMetadata(pubkey string, feed *gofeed.Feed, originalUrl string, enableAutoRegistration bool, defaultProfilePictureUrl string) nostr.Event {
+func EntryFeedToSetMetadata(pubkey string, feed *gofeed.Feed, originalUrl string, enableAutoRegistration bool, defaultProfilePictureUrl string) nostr.Event {
 	// Handle Nitter special cases (http schema)
 	if strings.Contains(feed.Description, "Twitter feed") {
 		if strings.HasPrefix(originalUrl, "https://") {

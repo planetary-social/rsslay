@@ -14,6 +14,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/piraces/rsslay/internal/handlers"
+	"github.com/piraces/rsslay/pkg/events"
 	"github.com/piraces/rsslay/pkg/feed"
 	"github.com/piraces/rsslay/pkg/replayer"
 	"github.com/piraces/rsslay/scripts"
@@ -22,7 +23,6 @@ import (
 	"net/http"
 	"os"
 	"path"
-	"strings"
 	"sync"
 	"time"
 )
@@ -122,25 +122,12 @@ func (r *Relay) UpdateListeningFilters() {
 		filters := relayer.GetListeningFilters()
 		log.Printf("checking for updates; %d filters active", len(filters))
 
-		var events []replayer.EventWithPrivateKey
+		var parsedEvents []replayer.EventWithPrivateKey
 		for _, filter := range filters {
 			if filter.Kinds == nil || slices.Contains(filter.Kinds, nostr.KindTextNote) {
 				for _, pubkey := range filter.Authors {
-					pubkey = strings.TrimSpace(pubkey)
-					row := r.db.QueryRow("SELECT privatekey, url FROM feeds WHERE publickey=$1", pubkey)
-
-					var entity feed.Entity
-					err := row.Scan(&entity.PrivateKey, &entity.URL)
-					if err != nil && err == sql.ErrNoRows {
-						continue
-					} else if err != nil {
-						log.Fatalf("failed when trying to retrieve row with pubkey '%s': %v", pubkey, err)
-					}
-
-					parsedFeed, err := feed.ParseFeed(entity.URL)
-					if err != nil {
-						log.Printf("failed to parse feed at url %q: %v", entity.URL, err)
-						feed.DeleteInvalidFeed(entity.URL, r.db)
+					parsedFeed, entity := events.GetParsedFeedForPubKey(pubkey, r.db)
+					if parsedFeed == nil {
 						continue
 					}
 
@@ -155,13 +142,13 @@ func (r *Relay) UpdateListeningFilters() {
 							_ = evt.Sign(entity.PrivateKey)
 							r.updates <- evt
 							r.lastEmitted.Store(entity.URL, last.(uint32))
-							events = append(events, replayer.EventWithPrivateKey{Event: evt, PrivateKey: entity.PrivateKey})
+							parsedEvents = append(parsedEvents, replayer.EventWithPrivateKey{Event: evt, PrivateKey: entity.PrivateKey})
 						}
 					}
 				}
 			}
 		}
-		r.AttemptReplayEvents(events)
+		r.AttemptReplayEvents(parsedEvents)
 	}
 }
 
@@ -202,34 +189,22 @@ func (b store) DeleteEvent(_, _ string) error {
 }
 
 func (b store) QueryEvents(filter *nostr.Filter) ([]nostr.Event, error) {
-	var events []nostr.Event
+	var parsedEvents []nostr.Event
 	var eventsToReplay []replayer.EventWithPrivateKey
 
 	if filter.IDs != nil || len(filter.Tags) > 0 {
-		return events, nil
+		return parsedEvents, nil
 	}
 
 	for _, pubkey := range filter.Authors {
-		pubkey = strings.TrimSpace(pubkey)
-		row := relayInstance.db.QueryRow("SELECT privatekey, url FROM feeds WHERE publickey=$1", pubkey)
+		parsedFeed, entity := events.GetParsedFeedForPubKey(pubkey, relayInstance.db)
 
-		var entity feed.Entity
-		err := row.Scan(&entity.PrivateKey, &entity.URL)
-		if err != nil && err == sql.ErrNoRows {
-			continue
-		} else if err != nil {
-			log.Fatalf("failed when trying to retrieve row with pubkey '%s': %v", pubkey, err)
-		}
-
-		parsedFeed, err := feed.ParseFeed(entity.URL)
-		if err != nil {
-			log.Printf("failed to parse feed at url %q: %v", entity.URL, err)
-			feed.DeleteInvalidFeed(entity.URL, relayInstance.db)
+		if parsedFeed == nil {
 			continue
 		}
 
 		if filter.Kinds == nil || slices.Contains(filter.Kinds, nostr.KindSetMetadata) {
-			evt := feed.FeedToSetMetadata(pubkey, parsedFeed, entity.URL, relayInstance.EnableAutoNIP05Registration, relayInstance.DefaultProfilePictureUrl)
+			evt := feed.EntryFeedToSetMetadata(pubkey, parsedFeed, entity.URL, relayInstance.EnableAutoNIP05Registration, relayInstance.DefaultProfilePictureUrl)
 
 			if filter.Since != nil && evt.CreatedAt.Before(*filter.Since) {
 				continue
@@ -239,7 +214,7 @@ func (b store) QueryEvents(filter *nostr.Filter) ([]nostr.Event, error) {
 			}
 
 			_ = evt.Sign(entity.PrivateKey)
-			events = append(events, evt)
+			parsedEvents = append(parsedEvents, evt)
 			eventsToReplay = append(eventsToReplay, replayer.EventWithPrivateKey{Event: evt, PrivateKey: entity.PrivateKey})
 		}
 
@@ -267,7 +242,7 @@ func (b store) QueryEvents(filter *nostr.Filter) ([]nostr.Event, error) {
 					last = uint32(evt.CreatedAt.Unix())
 				}
 
-				events = append(events, evt)
+				parsedEvents = append(parsedEvents, evt)
 				eventsToReplay = append(eventsToReplay, replayer.EventWithPrivateKey{Event: evt, PrivateKey: entity.PrivateKey})
 			}
 
@@ -277,7 +252,7 @@ func (b store) QueryEvents(filter *nostr.Filter) ([]nostr.Event, error) {
 
 	relayInstance.AttemptReplayEvents(eventsToReplay)
 
-	return events, nil
+	return parsedEvents, nil
 }
 
 func (r *Relay) InjectEvents() chan nostr.Event {
@@ -286,7 +261,13 @@ func (r *Relay) InjectEvents() chan nostr.Event {
 
 func main() {
 	CreateHealthCheck()
-	defer relayInstance.db.Close()
+	defer func(db *sql.DB) {
+		err := db.Close()
+		if err != nil {
+			log.Fatalf("failed to close the database connection: %v", err)
+		}
+	}(relayInstance.db)
+
 	if err := relayer.Start(relayInstance); err != nil {
 		log.Fatalf("server terminated: %v", err)
 	}
