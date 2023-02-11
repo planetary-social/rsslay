@@ -9,7 +9,6 @@ import (
 	"github.com/nbd-wtf/go-nostr/nip19"
 	"github.com/piraces/rsslay/pkg/feed"
 	"github.com/piraces/rsslay/pkg/helpers"
-	"github.com/piraces/rsslay/web/assets"
 	"github.com/piraces/rsslay/web/templates"
 	"html/template"
 	"log"
@@ -140,16 +139,6 @@ func HandleCreateFeed(w http.ResponseWriter, r *http.Request, db *sql.DB, secret
 
 	entry := createFeedEntry(r, db, secret)
 	_ = t.ExecuteTemplate(w, "created.html.tmpl", entry)
-}
-
-func HandleFavicon(w http.ResponseWriter, r *http.Request) {
-	mustRedirect := handleOtherRegion(w, r)
-	if mustRedirect {
-		return
-	}
-
-	w.Header().Set("Content-Type", "image/x-icon")
-	_, _ = w.Write(assets.Favicon)
 }
 
 func HandleApiFeed(w http.ResponseWriter, r *http.Request, db *sql.DB, secret *string, dsn *string) {

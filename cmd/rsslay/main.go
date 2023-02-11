@@ -32,6 +32,8 @@ var (
 	dsn = flag.String("dsn", "", "datasource name")
 )
 
+const assetsDir = "/assets/"
+
 type Relay struct {
 	Secret                          string   `envconfig:"SECRET" required:"true"`
 	DatabaseDirectory               string   `envconfig:"DB_DIR" default:"db/rsslay.sqlite"`
@@ -89,7 +91,9 @@ func (r *Relay) OnInitialized(s *relayer.Server) {
 	s.Router().Path("/search").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		handlers.HandleSearch(writer, request, r.db)
 	})
-	s.Router().Path("/favicon.ico").HandlerFunc(handlers.HandleFavicon)
+	s.Router().
+		PathPrefix(assetsDir).
+		Handler(http.StripPrefix(assetsDir, http.FileServer(http.Dir("./web/"+assetsDir))))
 	s.Router().Path("/healthz").HandlerFunc(relayInstance.healthCheck.HandlerFunc)
 	s.Router().Path("/api/feed").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		handlers.HandleApiFeed(writer, request, r.db, &r.Secret, dsn)
