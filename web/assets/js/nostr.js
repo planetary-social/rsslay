@@ -16,7 +16,13 @@ function tryAddToFollowList(pubKeyToFollow) {
     if (followListEvent) {
         const newFollowTag = ["p", pubKeyToFollow];
         const tagsSet = new Set(followListEvent.tags);
-        if (tagsSet.has(newFollowTag)){
+        let found = false;
+        followListEvent.tags.forEach((value) => {
+            if (value[1] === pubKeyToFollow){
+                found = true;
+            }
+        });
+        if (found){
             return followListEvent.tags;
         }
         tagsSet.add(newFollowTag);
@@ -33,9 +39,13 @@ function tryAddToFollowList(pubKeyToFollow) {
 
 function tryRemoveFromFollowList(publicKeyToUnfollow) {
     if (followListEvent) {
-        const unfollowTag = ["p", publicKeyToUnfollow];
-        const tagsSet = new Set(followListEvent.tags);
-        tagsSet.delete(unfollowTag);
+        const tagsSet = new Set();
+        followListEvent.tags.forEach((value) => {
+            if (value[1] !== publicKeyToUnfollow){
+                tagsSet.add(value);
+            }
+        });
+        debugger;
         return [...tagsSet];
     } else {
         swal({
@@ -69,6 +79,7 @@ async function tryUnfollow(pubKey) {
             pubs.forEach(pub => {
                 pub.on('ok', () => {
                     if (!alerted) {
+                        alerted = true;
                         swal({
                             title: "Not following",
                             text: "Your contact list has been updated, you're now no longer following the profile.",
@@ -115,6 +126,7 @@ async function tryFollow(pubKey) {
             pubs.forEach(pub => {
                 pub.on('ok', () => {
                     if (!alerted){
+                        alerted = true;
                         swal({
                             title: "Followed!",
                             text: "Your contact list has been updated, you're now following the profile.",
@@ -126,7 +138,6 @@ async function tryFollow(pubKey) {
                         followButton.classList.add("is-danger");
                         followButton.setAttribute('onclick', `tryUnfollow("${pubKey}")`);
                         followButton.textContent = "Unfollow";
-                        alerted = true;
                     }
                 })
                 pub.on('seen', () => {
