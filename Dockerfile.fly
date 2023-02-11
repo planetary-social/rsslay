@@ -43,6 +43,7 @@ ENV MAX_SUBROUTINES=20
 
 COPY --from=litefs /usr/local/bin/litefs /usr/local/bin/litefs
 COPY --from=build /rsslay /usr/local/bin/rsslay
+COPY --from=build /app/web/assets/ ./web/assets/
 
 ADD etc/litefs.yml /etc/litefs.yml
 

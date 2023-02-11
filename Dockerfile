@@ -40,5 +40,6 @@ ENV OWNER_PUBLIC_KEY=""
 ENV MAX_SUBROUTINES=20
 
 COPY --from=build /rsslay .
+COPY --from=build /app/web/assets/ ./web/assets/
 
 CMD [ "/rsslay" ]
