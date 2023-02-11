@@ -64,20 +64,23 @@ async function tryUnfollow(pubKey) {
         let ok = window.NostrTools.validateEvent(signedEvent);
         let veryOk = window.NostrTools.verifySignature(signedEvent);
         if (ok && veryOk){
+            let alerted = false;
             let pubs = pool.publish(relaysUrls, signedEvent);
             pubs.forEach(pub => {
                 pub.on('ok', () => {
-                    swal({
-                        title: "Not following",
-                        text: "Your contact list has been updated, you're now no longer following the profile.",
-                        icon: "success",
-                        button: "Ok",
-                    });
-                    const followButton = document.getElementById(pubKey);
-                    followButton.classList.remove("is-danger");
-                    followButton.classList.add("is-link");
-                    followButton.setAttribute('onclick', `tryFollow("${pubKey}")`);
-                    followButton.textContent = "Follow profile";
+                    if (!alerted) {
+                        swal({
+                            title: "Not following",
+                            text: "Your contact list has been updated, you're now no longer following the profile.",
+                            icon: "success",
+                            button: "Ok",
+                        });
+                        const followButton = document.getElementById(pubKey);
+                        followButton.classList.remove("is-danger");
+                        followButton.classList.add("is-link");
+                        followButton.setAttribute('onclick', `tryFollow("${pubKey}")`);
+                        followButton.textContent = "Follow profile";
+                    }
                 })
                 pub.on('seen', () => {
                     console.log(`we saw the event!`);
@@ -107,20 +110,24 @@ async function tryFollow(pubKey) {
         let ok = window.NostrTools.validateEvent(signedEvent);
         let veryOk = window.NostrTools.verifySignature(signedEvent);
         if (ok && veryOk){
+            let alerted = false;
             let pubs = pool.publish(relaysUrls, signedEvent);
             pubs.forEach(pub => {
                 pub.on('ok', () => {
-                    swal({
-                        title: "Followed!",
-                        text: "Your contact list has been updated, you're now following the profile.",
-                        icon: "success",
-                        button: "Ok",
-                    });
-                    const followButton = document.getElementById(pubKey);
-                    followButton.classList.remove("is-link");
-                    followButton.classList.add("is-danger");
-                    followButton.setAttribute('onclick', `tryUnfollow("${pubKey}")`);
-                    followButton.textContent = "Unfollow";
+                    if (!alerted){
+                        swal({
+                            title: "Followed!",
+                            text: "Your contact list has been updated, you're now following the profile.",
+                            icon: "success",
+                            button: "Ok",
+                        });
+                        const followButton = document.getElementById(pubKey);
+                        followButton.classList.remove("is-link");
+                        followButton.classList.add("is-danger");
+                        followButton.setAttribute('onclick', `tryUnfollow("${pubKey}")`);
+                        followButton.textContent = "Unfollow";
+                        alerted = true;
+                    }
                 })
                 pub.on('seen', () => {
                     console.log(`we saw the event!`);
@@ -140,10 +147,12 @@ function parseFollowList(followListEvent) {
     });
     profilesPubKeys.forEach((pubKey) => {
         const followButton = document.getElementById(pubKey);
-        followButton.classList.remove("is-link");
-        followButton.classList.add("is-danger");
-        followButton.onclick = tryUnfollow(`"${pubKey}"`);
-        followButton.textContent = "Unfollow";
+        if (followButton) {
+            followButton.classList.remove("is-link");
+            followButton.classList.add("is-danger");
+            followButton.setAttribute('onclick', `tryUnfollow("${pubKey}")`);
+            followButton.textContent = "Unfollow";
+        }
     });
 }
 
