@@ -16,6 +16,9 @@ app = "rsslay"
   ENABLE_AUTO_NIP05_REGISTRATION = "true"
   OWNER_PUBLIC_KEY = "072d52c5955d40a26b74f9957bee187c2a750d68e01247b16ad9b96ed6b00927"
   MAX_SUBROUTINES = 20
+  INFO_RELAY_NAME = "rsslay public instance"
+  INFO_CONTACT = "mailto:raul@piraces.dev"
+  VERSION = "0.4.1"
 
 [[services]]
   internal_port = 8080

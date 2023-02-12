@@ -13,6 +13,7 @@ import (
 	"github.com/kelseyhightower/envconfig"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/nbd-wtf/go-nostr"
+	"github.com/nbd-wtf/go-nostr/nip11"
 	"github.com/piraces/rsslay/internal/handlers"
 	"github.com/piraces/rsslay/pkg/events"
 	"github.com/piraces/rsslay/pkg/feed"
@@ -48,6 +49,8 @@ type Relay struct {
 	MainDomainName                  string   `envconfig:"MAIN_DOMAIN_NAME" default:""`
 	OwnerPublicKey                  string   `envconfig:"OWNER_PUBLIC_KEY" default:""`
 	MaxSubroutines                  int      `envconfig:"MAX_SUBROUTINES" default:"20"`
+	RelayName                       string   `envconfig:"INFO_RELAY_NAME" default:"rsslay"`
+	Contact                         string   `envconfig:"INFO_CONTACT" default:"~"`
 
 	updates            chan nostr.Event
 	lastEmitted        sync.Map
@@ -78,7 +81,7 @@ func CreateHealthCheck() {
 }
 
 func (r *Relay) Name() string {
-	return "rsslay"
+	return r.RelayName
 }
 
 func (r *Relay) OnInitialized(s *relayer.Server) {
@@ -261,6 +264,24 @@ func (b store) QueryEvents(filter *nostr.Filter) ([]nostr.Event, error) {
 
 func (r *Relay) InjectEvents() chan nostr.Event {
 	return r.updates
+}
+
+func (r *Relay) GetNIP11InformationDocument() nip11.RelayInformationDocument {
+	infoDocument := nip11.RelayInformationDocument{
+		Name:          relayInstance.Name(),
+		Description:   "Relay that creates virtual nostr profiles for each RSS feed submitted, powered by the relayer framework",
+		PubKey:        relayInstance.OwnerPublicKey,
+		Contact:       relayInstance.Contact,
+		SupportedNIPs: []int{5, 9, 11, 12, 15, 16, 19, 20},
+		Software:      "git+https://github.com/piraces/rsslay.git",
+		Version:       relayInstance.Version,
+	}
+
+	if relayInstance.OwnerPublicKey == "" {
+		infoDocument.PubKey = "~"
+	}
+
+	return infoDocument
 }
 
 func main() {
