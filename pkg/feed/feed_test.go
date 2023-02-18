@@ -89,6 +89,19 @@ var sampleDefaultFeedItem = gofeed.Item{
 	GUID:            "https://golangweekly.com/issues/446",
 }
 
+var sampleDefaultFeedItemWithComments = gofeed.Item{
+	Title:           "Golang Weekly",
+	Description:     "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Phasellus nec condimentum orci. Vestibulum at nunc porta, placerat ex sit amet, consectetur augue. Donec cursus ipsum sed venenatis maximus. Nunc tincidunt dui nec congue lacinia. In mollis magna eu nisi viverra luctus. Ut ultrices eros gravida, lacinia nibh vitae, tristique massa. Sed eu scelerisque erat. Sed eget tortor et turpis feugiat interdum. Nulla sit amet nibh vel massa bibendum congue. Quisque sed tempor velit. Interdum et malesuada fames ac ante ipsum primis in faucibus. Curabitur suscipit mollis fringilla. Integer quis sodales tortor, at hendrerit lacus. Cras posuere maximus nisi. Mauris eget.",
+	Content:         "Sample content",
+	Link:            "https://golangweekly.com/issues/446",
+	UpdatedParsed:   &actualTime,
+	PublishedParsed: &actualTime,
+	GUID:            "https://golangweekly.com/issues/446",
+	Custom: map[string]string{
+		"comments": "https://golangweekly.com/issues/446",
+	},
+}
+
 var sampleDefaultFeedItemExpectedContent = fmt.Sprintf("**%s**\n\n%s", sampleDefaultFeedItem.Title, sampleDefaultFeedItem.Description)
 var sampleDefaultFeedItemExpectedContentSubstring = sampleDefaultFeedItemExpectedContent[0:249]
 
@@ -100,6 +113,9 @@ var sampleStackerNewsFeedItem = gofeed.Item{
 	UpdatedParsed:   &actualTime,
 	PublishedParsed: &actualTime,
 	GUID:            "https://stacker.news/items/131533",
+	Custom: map[string]string{
+		"comments": "https://stacker.news/items/131533",
+	},
 }
 
 var sampleDefaultFeed = gofeed.Feed{
@@ -236,6 +252,14 @@ func TestItemToTextNote(t *testing.T) {
 			defaultCreatedAt: actualTime,
 			originalUrl:      sampleDefaultFeed.FeedLink,
 			expectedContent:  sampleDefaultFeedItemExpectedContentSubstring + "…" + "\n\n" + sampleDefaultFeedItem.Link,
+		},
+		{
+			pubKey:           samplePubKey,
+			item:             &sampleDefaultFeedItemWithComments,
+			feed:             &sampleDefaultFeed,
+			defaultCreatedAt: actualTime,
+			originalUrl:      sampleDefaultFeed.FeedLink,
+			expectedContent:  sampleDefaultFeedItemExpectedContentSubstring + "…\nComments: " + sampleDefaultFeedItemWithComments.Custom["comments"] + "\n\n" + sampleDefaultFeedItem.Link,
 		},
 		{
 			pubKey:           samplePubKey,

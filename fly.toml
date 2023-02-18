@@ -8,7 +8,7 @@ app = "rsslay"
   DB_DIR = "/var/lib/litefs/db"
   DEFAULT_PROFILE_PICTURE_URL = "https://i.imgur.com/MaceU96.png"
   REPLAY_TO_RELAYS = "true"
-  RELAYS_TO_PUBLISH_TO = "wss://nostr.developer.li,wss://relay.nostr.moe,wss://nostr.fmt.wiz.biz,wss://offchain.pub,wss://nos.lol,wss://e.nos.lol"
+  RELAYS_TO_PUBLISH_TO = "wss://relay.nostrgraph.net,wss://offchain.pub,wss://nos.lol,wss://e.nos.lol,wss://nostr.mom"
   DEFAULT_WAIT_TIME_BETWEEN_BATCHES = "60000"
   DEFAULT_WAIT_TIME_FOR_RELAY_RESPONSE = "1000"
   MAX_EVENTS_TO_REPLAY = "10"
@@ -18,7 +18,7 @@ app = "rsslay"
   MAX_SUBROUTINES = 20
   INFO_RELAY_NAME = "rsslay public instance"
   INFO_CONTACT = "mailto:raul@piraces.dev"
-  VERSION = "0.4.2"
+  VERSION = "0.4.3"
 
 [[services]]
   internal_port = 8080

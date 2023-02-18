@@ -87,7 +87,7 @@ func ParseFeed(url string) (*gofeed.Feed, error) {
 	if feed, ok := feedCache.Get(url); ok {
 		return feed.(*gofeed.Feed), nil
 	}
-
+	fp.RSSTranslator = NewCustomTranslator()
 	feed, err := fp.ParseURL(url)
 	if err != nil {
 		return nil, err
@@ -155,11 +155,6 @@ func ItemToTextNote(pubkey string, item *gofeed.Item, feed *gofeed.Feed, default
 
 	description := strip.StripTags(item.Description)
 
-	// Handle stacker.news comments
-	if strings.Contains(feed.Link, "stacker.news") {
-		description += fmt.Sprintf(": %s", item.GUID)
-	}
-
 	if !strings.EqualFold(item.Title, description) {
 		content += description
 	}
@@ -197,6 +192,18 @@ func ItemToTextNote(pubkey string, item *gofeed.Item, feed *gofeed.Feed, default
 	if shouldUpgradeLinkSchema {
 		item.Link = strings.ReplaceAll(item.Link, "http://", "https://")
 	}
+
+	// Handle comments
+	if item.Custom != nil {
+		if comments, ok := item.Custom["comments"]; ok {
+			if strings.Contains(feed.Link, "stacker.news") {
+				content += fmt.Sprintf(": %s", comments)
+			} else {
+				content += fmt.Sprintf("\nComments: %s", comments)
+			}
+		}
+	}
+
 	content += "\n\n" + item.Link
 
 	createdAt := defaultCreatedAt
