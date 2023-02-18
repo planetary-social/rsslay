@@ -199,7 +199,7 @@ func ItemToTextNote(pubkey string, item *gofeed.Item, feed *gofeed.Feed, default
 			if strings.Contains(feed.Link, "stacker.news") {
 				content += fmt.Sprintf(": %s", comments)
 			} else {
-				content += fmt.Sprintf("\nComments: %s", comments)
+				content += fmt.Sprintf("\n\nComments: %s", comments)
 			}
 		}
 	}

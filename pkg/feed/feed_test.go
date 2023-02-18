@@ -259,7 +259,7 @@ func TestItemToTextNote(t *testing.T) {
 			feed:             &sampleDefaultFeed,
 			defaultCreatedAt: actualTime,
 			originalUrl:      sampleDefaultFeed.FeedLink,
-			expectedContent:  sampleDefaultFeedItemExpectedContentSubstring + "…\nComments: " + sampleDefaultFeedItemWithComments.Custom["comments"] + "\n\n" + sampleDefaultFeedItem.Link,
+			expectedContent:  sampleDefaultFeedItemExpectedContentSubstring + "…\n\nComments: " + sampleDefaultFeedItemWithComments.Custom["comments"] + "\n\n" + sampleDefaultFeedItem.Link,
 		},
 		{
 			pubKey:           samplePubKey,
