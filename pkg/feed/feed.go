@@ -9,7 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
-	strip "github.com/grokify/html-strip-tags-go"
+	"github.com/microcosm-cc/bluemonday"
 	"github.com/mmcdole/gofeed"
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/piraces/rsslay/pkg/helpers"
@@ -153,7 +153,8 @@ func ItemToTextNote(pubkey string, item *gofeed.Item, feed *gofeed.Feed, default
 		content = "**" + item.Title + "**\n\n"
 	}
 
-	description := strip.StripTags(item.Description)
+	p := bluemonday.StripTagsPolicy()
+	description := p.Sanitize(item.Description)
 
 	if !strings.EqualFold(item.Title, description) {
 		content += description
