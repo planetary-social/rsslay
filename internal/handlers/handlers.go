@@ -51,7 +51,7 @@ func HandleWebpage(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	}
 
 	var items []Entry
-	rows, err := db.Query(`SELECT publickey, url FROM feeds LIMIT 50`)
+	rows, err := db.Query(`SELECT publickey, url FROM feeds ORDER BY RANDOM() LIMIT 50`)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
