@@ -228,6 +228,7 @@ func TestItemToTextNote(t *testing.T) {
 		defaultCreatedAt time.Time
 		originalUrl      string
 		expectedContent  string
+		maxContentLength int
 	}{
 		{
 			pubKey:           samplePubKey,
@@ -236,6 +237,7 @@ func TestItemToTextNote(t *testing.T) {
 			defaultCreatedAt: actualTime,
 			originalUrl:      sampleNitterFeed.FeedLink,
 			expectedContent:  fmt.Sprintf("**RT %s:**\n\n%s\n\n%s", sampleNitterFeedRTItem.DublinCoreExt.Creator[0], sampleNitterFeedRTItem.Description, strings.ReplaceAll(sampleNitterFeedRTItem.Link, "http://", "https://")),
+			maxContentLength: 250,
 		},
 		{
 			pubKey:           samplePubKey,
@@ -244,6 +246,7 @@ func TestItemToTextNote(t *testing.T) {
 			defaultCreatedAt: actualTime,
 			originalUrl:      sampleNitterFeed.FeedLink,
 			expectedContent:  fmt.Sprintf("**Response to %s:**\n\n%s\n\n%s", "@coldplay", sampleNitterFeedResponseItem.Description, strings.ReplaceAll(sampleNitterFeedResponseItem.Link, "http://", "https://")),
+			maxContentLength: 250,
 		},
 		{
 			pubKey:           samplePubKey,
@@ -252,6 +255,7 @@ func TestItemToTextNote(t *testing.T) {
 			defaultCreatedAt: actualTime,
 			originalUrl:      sampleDefaultFeed.FeedLink,
 			expectedContent:  sampleDefaultFeedItemExpectedContentSubstring + "…" + "\n\n" + sampleDefaultFeedItem.Link,
+			maxContentLength: 250,
 		},
 		{
 			pubKey:           samplePubKey,
@@ -260,6 +264,16 @@ func TestItemToTextNote(t *testing.T) {
 			defaultCreatedAt: actualTime,
 			originalUrl:      sampleDefaultFeed.FeedLink,
 			expectedContent:  sampleDefaultFeedItemExpectedContentSubstring + "…\n\nComments: " + sampleDefaultFeedItemWithComments.Custom["comments"] + "\n\n" + sampleDefaultFeedItem.Link,
+			maxContentLength: 250,
+		},
+		{
+			pubKey:           samplePubKey,
+			item:             &sampleDefaultFeedItemWithComments,
+			feed:             &sampleDefaultFeed,
+			defaultCreatedAt: actualTime,
+			originalUrl:      sampleDefaultFeed.FeedLink,
+			expectedContent:  sampleDefaultFeedItemExpectedContent + "\n\nComments: " + sampleDefaultFeedItemWithComments.Custom["comments"] + "\n\n" + sampleDefaultFeedItem.Link,
+			maxContentLength: 1500,
 		},
 		{
 			pubKey:           samplePubKey,
@@ -268,10 +282,11 @@ func TestItemToTextNote(t *testing.T) {
 			defaultCreatedAt: actualTime,
 			originalUrl:      sampleStackerNewsFeed.FeedLink,
 			expectedContent:  fmt.Sprintf("**%s**\n\nComments: %s\n\n%s", sampleStackerNewsFeedItem.Title, sampleStackerNewsFeedItem.GUID, sampleStackerNewsFeedItem.Link),
+			maxContentLength: 250,
 		},
 	}
 	for _, tc := range testCases {
-		event := ItemToTextNote(tc.pubKey, tc.item, tc.feed, tc.defaultCreatedAt, tc.originalUrl)
+		event := ItemToTextNote(tc.pubKey, tc.item, tc.feed, tc.defaultCreatedAt, tc.originalUrl, tc.maxContentLength)
 		assert.NotEmpty(t, event)
 		assert.Equal(t, tc.pubKey, event.PubKey)
 		assert.Equal(t, tc.defaultCreatedAt, event.CreatedAt)

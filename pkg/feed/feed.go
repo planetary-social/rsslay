@@ -147,7 +147,7 @@ func EntryFeedToSetMetadata(pubkey string, feed *gofeed.Feed, originalUrl string
 	return evt
 }
 
-func ItemToTextNote(pubkey string, item *gofeed.Item, feed *gofeed.Feed, defaultCreatedAt time.Time, originalUrl string) nostr.Event {
+func ItemToTextNote(pubkey string, item *gofeed.Item, feed *gofeed.Feed, defaultCreatedAt time.Time, originalUrl string, maxContentLength int) nostr.Event {
 	content := ""
 	if item.Title != "" {
 		content = "**" + item.Title + "**\n\n"
@@ -185,8 +185,8 @@ func ItemToTextNote(pubkey string, item *gofeed.Item, feed *gofeed.Feed, default
 	}
 
 	content = html.UnescapeString(content)
-	if len(content) > 250 {
-		content = content[0:249] + "…"
+	if len(content) > maxContentLength {
+		content = content[0:(maxContentLength-1)] + "…"
 	}
 
 	if shouldUpgradeLinkSchema {

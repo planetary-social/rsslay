@@ -51,6 +51,7 @@ type Relay struct {
 	MaxSubroutines                  int      `envconfig:"MAX_SUBROUTINES" default:"20"`
 	RelayName                       string   `envconfig:"INFO_RELAY_NAME" default:"rsslay"`
 	Contact                         string   `envconfig:"INFO_CONTACT" default:"~"`
+	MaxContentLength                int      `envconfig:"MAX_CONTENT_LENGTH" default:"250"`
 
 	updates            chan nostr.Event
 	lastEmitted        sync.Map
@@ -140,7 +141,7 @@ func (r *Relay) UpdateListeningFilters() {
 
 					for _, item := range parsedFeed.Items {
 						defaultCreatedAt := time.Now()
-						evt := feed.ItemToTextNote(pubkey, item, parsedFeed, defaultCreatedAt, entity.URL)
+						evt := feed.ItemToTextNote(pubkey, item, parsedFeed, defaultCreatedAt, entity.URL, relayInstance.MaxContentLength)
 						last, ok := r.lastEmitted.Load(entity.URL)
 						if last == nil {
 							last = uint32(time.Now().Unix())
@@ -229,7 +230,7 @@ func (b store) QueryEvents(filter *nostr.Filter) ([]nostr.Event, error) {
 			var last uint32 = 0
 			for _, item := range parsedFeed.Items {
 				defaultCreatedAt := time.Now()
-				evt := feed.ItemToTextNote(pubkey, item, parsedFeed, defaultCreatedAt, entity.URL)
+				evt := feed.ItemToTextNote(pubkey, item, parsedFeed, defaultCreatedAt, entity.URL, relayInstance.MaxContentLength)
 
 				// Feed need to have a date for each entry...
 				if evt.CreatedAt.Equal(defaultCreatedAt) {

@@ -18,7 +18,8 @@ app = "rsslay"
   MAX_SUBROUTINES = 20
   INFO_RELAY_NAME = "rsslay public instance"
   INFO_CONTACT = "mailto:raul@piraces.dev"
-  VERSION = "0.4.3"
+  MAX_CONTENT_LENGTH = 1500
+  VERSION = "0.4.4"
 
 [[services]]
   internal_port = 8080
