@@ -180,6 +180,7 @@ function connectToRelays(){
             followListEvent = event;
             relays = JSON.parse(event.content);
             relaysUrls = Object.keys(relays);
+            sessionStorage.setItem(rsslayRelaysStorageKey, JSON.stringify(relays));
             parseFollowList(followListEvent);
         }
     });
