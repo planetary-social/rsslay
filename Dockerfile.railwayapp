@@ -17,6 +17,7 @@ ARG INFO_RELAY_NAME
 ARG INFO_CONTACT
 ARG MAX_CONTENT_LENGTH
 ARG LOG_LEVEL
+ARG DELETE_FAILING_FEEDS
 
 WORKDIR /app
 
@@ -53,6 +54,7 @@ ARG INFO_RELAY_NAME
 ARG INFO_CONTACT
 ARG MAX_CONTENT_LENGTH
 ARG LOG_LEVEL
+ARG DELETE_FAILING_FEEDS
 
 LABEL org.opencontainers.image.title="rsslay"
 LABEL org.opencontainers.image.source=https://github.com/piraces/rsslay
@@ -78,6 +80,7 @@ ENV INFO_RELAY_NAME="rsslay"
 ENV INFO_CONTACT=""
 ENV MAX_CONTENT_LENGTH=250
 ENV LOG_LEVEL="WARN"
+ENV DELETE_FAILING_FEEDS=false
 
 COPY --from=build /rsslay .
 COPY --from=build /app/web/assets/ ./web/assets/

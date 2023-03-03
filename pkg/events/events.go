@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-func GetParsedFeedForPubKey(pubKey string, db *sql.DB) (*gofeed.Feed, feed.Entity) {
+func GetParsedFeedForPubKey(pubKey string, db *sql.DB, deleteFailingFeeds bool) (*gofeed.Feed, feed.Entity) {
 	pubKey = strings.TrimSpace(pubKey)
 	row := db.QueryRow("SELECT privatekey, url FROM feeds WHERE publickey=$1", pubKey)
 
@@ -23,15 +23,19 @@ func GetParsedFeedForPubKey(pubKey string, db *sql.DB) (*gofeed.Feed, feed.Entit
 	}
 
 	if !helpers.IsValidHttpUrl(entity.URL) {
-		log.Printf("[INFO] retrieved invalid url from database %q, deleting...", entity.URL)
-		feed.DeleteInvalidFeed(entity.URL, db)
+		log.Printf("[INFO] retrieved invalid url from database %q", entity.URL)
+		if deleteFailingFeeds {
+			feed.DeleteInvalidFeed(entity.URL, db)
+		}
 		return nil, entity
 	}
 
 	parsedFeed, err := feed.ParseFeed(entity.URL)
 	if err != nil {
 		log.Printf("[DEBUG] failed to parse feed at url %q: %v", entity.URL, err)
-		feed.DeleteInvalidFeed(entity.URL, db)
+		if deleteFailingFeeds {
+			feed.DeleteInvalidFeed(entity.URL, db)
+		}
 		return nil, entity
 	}
 

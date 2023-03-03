@@ -80,7 +80,7 @@ func TestGetParsedFeedForPubKey(t *testing.T) {
 		}
 		mock.ExpectClose()
 
-		parsedFeed, entity := GetParsedFeedForPubKey(tc.pubKey, db)
+		parsedFeed, entity := GetParsedFeedForPubKey(tc.pubKey, db, true)
 		if tc.expectedSqlError {
 			assert.Nil(t, parsedFeed)
 			assert.Empty(t, entity)

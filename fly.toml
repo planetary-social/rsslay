@@ -21,6 +21,7 @@ app = "rsslay"
   MAX_CONTENT_LENGTH = 5000
   VERSION = "0.4.4"
   LOG_LEVEL = "WARN"
+  DELETE_FAILING_FEEDS = "false"
 
 [[services]]
   internal_port = 8080

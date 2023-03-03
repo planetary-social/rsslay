@@ -53,6 +53,7 @@ type Relay struct {
 	RelayName                       string   `envconfig:"INFO_RELAY_NAME" default:"rsslay"`
 	Contact                         string   `envconfig:"INFO_CONTACT" default:"~"`
 	MaxContentLength                int      `envconfig:"MAX_CONTENT_LENGTH" default:"250"`
+	DeleteFailingFeeds              bool     `envconfig:"DELETE_FAILING_FEEDS" default:"false"`
 
 	updates            chan nostr.Event
 	lastEmitted        sync.Map
@@ -144,7 +145,7 @@ func (r *Relay) UpdateListeningFilters() {
 		for _, filter := range filters {
 			if filter.Kinds == nil || slices.Contains(filter.Kinds, nostr.KindTextNote) {
 				for _, pubkey := range filter.Authors {
-					parsedFeed, entity := events.GetParsedFeedForPubKey(pubkey, r.db)
+					parsedFeed, entity := events.GetParsedFeedForPubKey(pubkey, r.db, r.DeleteFailingFeeds)
 					if parsedFeed == nil {
 						continue
 					}
@@ -215,7 +216,7 @@ func (b store) QueryEvents(filter *nostr.Filter) ([]nostr.Event, error) {
 	}
 
 	for _, pubkey := range filter.Authors {
-		parsedFeed, entity := events.GetParsedFeedForPubKey(pubkey, relayInstance.db)
+		parsedFeed, entity := events.GetParsedFeedForPubKey(pubkey, relayInstance.db, relayInstance.DeleteFailingFeeds)
 
 		if parsedFeed == nil {
 			continue

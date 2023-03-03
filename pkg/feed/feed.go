@@ -8,10 +8,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	md "github.com/JohannesKaufmann/html-to-markdown"
 	"github.com/PuerkitoBio/goquery"
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/mmcdole/gofeed"
 	"github.com/nbd-wtf/go-nostr"
+	"github.com/piraces/rsslay/pkg/converter"
 	"github.com/piraces/rsslay/pkg/helpers"
 	"github.com/rif/cache2go"
 	"html"
@@ -150,14 +152,21 @@ func EntryFeedToSetMetadata(pubkey string, feed *gofeed.Feed, originalUrl string
 func ItemToTextNote(pubkey string, item *gofeed.Item, feed *gofeed.Feed, defaultCreatedAt time.Time, originalUrl string, maxContentLength int) nostr.Event {
 	content := ""
 	if item.Title != "" {
-		content = "**" + item.Title + "**\n\n"
+		content = "**" + item.Title + "**"
 	}
 
-	p := bluemonday.StripTagsPolicy()
-	description := p.Sanitize(item.Description)
+	mdConverter := md.NewConverter("", true, nil)
+	mdConverter.AddRules(converter.GetConverterRules()...)
 
-	if !strings.EqualFold(item.Title, description) {
-		content += description
+	description, err := mdConverter.ConvertString(item.Description)
+	if err != nil {
+		log.Printf("[WARN] failure to convert description to markdown (defaulting to plain text): %v", err)
+		p := bluemonday.StripTagsPolicy()
+		description = p.Sanitize(item.Description)
+	}
+
+	if !strings.EqualFold(item.Title, description) && !strings.Contains(feed.Link, "stacker.news") {
+		content += "\n\n" + description
 	}
 
 	shouldUpgradeLinkSchema := false
@@ -197,11 +206,7 @@ func ItemToTextNote(pubkey string, item *gofeed.Item, feed *gofeed.Feed, default
 	// Handle comments
 	if item.Custom != nil {
 		if comments, ok := item.Custom["comments"]; ok {
-			if strings.Contains(feed.Link, "stacker.news") {
-				content += fmt.Sprintf(": %s", comments)
-			} else {
-				content += fmt.Sprintf("\n\nComments: %s", comments)
-			}
+			content += fmt.Sprintf("\n\nComments: %s", comments)
 		}
 	}
 
@@ -236,7 +241,7 @@ func PrivateKeyFromFeed(url string, secret string) string {
 
 func DeleteInvalidFeed(url string, db *sql.DB) {
 	if _, err := db.Exec(`DELETE FROM feeds WHERE url=?`, url); err != nil {
-		log.Printf("[ERROR] failure to delete invalid feed: " + err.Error())
+		log.Printf("[ERROR] failure to delete invalid feed: %v", err)
 	} else {
 		log.Printf("[DEBUG] deleted invalid feed with url %q", url)
 	}

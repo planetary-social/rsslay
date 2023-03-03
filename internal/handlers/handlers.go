@@ -281,7 +281,7 @@ func insertFeed(err error, feedUrl string, publicKey string, sk string, db *sql.
 	if err != nil && err == sql.ErrNoRows {
 		log.Printf("[DEBUG] not found feed at url %q as publicKey %s", feedUrl, publicKey)
 		if _, err := db.Exec(`INSERT INTO feeds (publickey, privatekey, url) VALUES (?, ?, ?)`, publicKey, sk, feedUrl); err != nil {
-			log.Printf("[ERROR] failure: " + err.Error())
+			log.Printf("[ERROR] failure: %v", err)
 		} else {
 			log.Printf("[DEBUG] saved feed at url %q as publicKey %s", feedUrl, publicKey)
 		}

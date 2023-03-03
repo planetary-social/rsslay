@@ -42,6 +42,7 @@ ENV INFO_RELAY_NAME="rsslay"
 ENV INFO_CONTACT=""
 ENV MAX_CONTENT_LENGTH=250
 ENV LOG_LEVEL="WARN"
+ENV DELETE_FAILING_FEEDS=false
 
 COPY --from=build /rsslay .
 COPY --from=build /app/web/assets/ ./web/assets/
