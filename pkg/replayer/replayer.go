@@ -44,7 +44,7 @@ func ReplayEventsToRelays(parameters *ReplayParameters) {
 		for _, url := range parameters.RelaysToPublish {
 			relay, e := nostr.RelayConnect(context.Background(), url)
 			if e != nil {
-				log.Println(e)
+				log.Printf("[ERROR] Error while trying to connect with relay '%s': %v", url, e)
 				continue
 			}
 
@@ -58,7 +58,13 @@ func ReplayEventsToRelays(parameters *ReplayParameters) {
 				publishStatus := relay.Publish(context.Background(), ev.Event)
 				statusSummary = statusSummary | int(publishStatus)
 			}
-			log.Printf("Replayed %d events to %s with status summary %d\n", len(parameters.Events), url, statusSummary)
+			if statusSummary < 0 {
+				log.Printf("[WARN] Replayed %d events to %s with failed status summary %d\n", len(parameters.Events), url, statusSummary)
+
+			} else {
+				log.Printf("[DEBUG] Replayed %d events to %s with status summary %d\n", len(parameters.Events), url, statusSummary)
+			}
+
 			_ = relay.Close()
 		}
 		time.Sleep(time.Duration(parameters.WaitTime) * time.Millisecond)
@@ -72,10 +78,10 @@ func needsAuth(relay *nostr.Relay, waitTime int64) (*string, bool) {
 	for {
 		select {
 		case d := <-relay.Challenges:
-			log.Println("Got challenge:", d)
+			log.Println("[DEBUG] Got challenge:", d)
 			return &d, true
 		case <-afterCh:
-			log.Println("No challenge received... Skipping auth")
+			log.Println("[DEBUG] No challenge received... Skipping auth")
 			return nil, false
 		}
 	}
@@ -85,7 +91,7 @@ func tryAuth(relay *nostr.Relay, challenge string, url string, waitTime int64, e
 	event := nip42.CreateUnsignedAuthEvent(challenge, ev.Event.PubKey, url)
 	err := event.Sign(ev.PrivateKey)
 	if err != nil {
-		log.Printf("Failed to sign event while trying to authenticate. PubKey: %s\n", ev.Event.PubKey)
+		log.Printf("[ERROR] Failed to sign event while trying to authenticate. PubKey: %s\n", ev.Event.PubKey)
 		return false
 	}
 
@@ -97,7 +103,7 @@ func tryAuth(relay *nostr.Relay, challenge string, url string, waitTime int64, e
 	// Returned status is either success, fail, or sent (if no reply given in the 3-second timeout).
 	authStatus := relay.Auth(ctx, event)
 
-	log.Printf("authenticated as %s: %s\n", ev.Event.PubKey, authStatus)
+	log.Printf("[DEBUG] authenticated as %s: %s\n", ev.Event.PubKey, authStatus)
 	if authStatus == nostr.PublishStatusSucceeded || authStatus == nostr.PublishStatusSent {
 		return true
 	}

@@ -236,8 +236,8 @@ func PrivateKeyFromFeed(url string, secret string) string {
 
 func DeleteInvalidFeed(url string, db *sql.DB) {
 	if _, err := db.Exec(`DELETE FROM feeds WHERE url=?`, url); err != nil {
-		log.Printf("failure to delete invalid feed: " + err.Error())
+		log.Printf("[ERROR] failure to delete invalid feed: " + err.Error())
 	} else {
-		log.Printf("deleted invalid feed with url %q", url)
+		log.Printf("[DEBUG] deleted invalid feed with url %q", url)
 	}
 }

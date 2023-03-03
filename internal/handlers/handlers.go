@@ -60,7 +60,7 @@ func HandleWebpage(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	for rows.Next() {
 		var entry Entry
 		if err := rows.Scan(&entry.PubKey, &entry.Url); err != nil {
-			log.Printf("failed to scan row iterating feeds: %v", err)
+			log.Printf("[ERROR] failed to scan row iterating feeds: %v", err)
 			continue
 		}
 
@@ -110,7 +110,7 @@ func HandleSearch(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	for rows.Next() {
 		var entry Entry
 		if err := rows.Scan(&entry.PubKey, &entry.Url); err != nil {
-			log.Printf("failed to scan row iterating feeds searching: %v", err)
+			log.Printf("[ERROR] failed to scan row iterating feeds searching: %v", err)
 			continue
 		}
 
@@ -202,7 +202,7 @@ func handleCreateFeedEntry(w http.ResponseWriter, r *http.Request, db *sql.DB, s
 func handleOtherRegion(w http.ResponseWriter, r *http.Request) bool {
 	// If a different region is specified, redirect to that region.
 	if region := r.URL.Query().Get("region"); region != "" && region != os.Getenv("FLY_REGION") {
-		log.Printf("redirecting from %q to %q", os.Getenv("FLY_REGION"), region)
+		log.Printf("[DEBUG] redirecting from %q to %q", os.Getenv("FLY_REGION"), region)
 		w.Header().Set("fly-replay", "region="+region)
 		return true
 	}
@@ -218,7 +218,7 @@ func handleRedirectToPrimaryNode(w http.ResponseWriter, dsn *string) bool {
 		return true
 	}
 	if string(primary) != "" {
-		log.Printf("redirecting to primary instance: %q", string(primary))
+		log.Printf("[DEBUG] redirecting to primary instance: %q", string(primary))
 		w.Header().Set("fly-replay", "instance="+string(primary))
 		return true
 	}
@@ -233,7 +233,7 @@ func createFeedEntry(r *http.Request, db *sql.DB, secret *string) *Entry {
 	}
 
 	if !helpers.IsValidHttpUrl(urlParam) {
-		log.Printf("retrieved invalid url from database %q, deleting...", urlParam)
+		log.Printf("[DEBUG] tried to create feed from invalid feed url '%q' skipping...", urlParam)
 		entry.ErrorCode = http.StatusBadRequest
 		entry.Error = true
 		entry.ErrorMessage = "Invalid URL provided (must be in absolute format and with https or https scheme)..."
@@ -279,15 +279,15 @@ func insertFeed(err error, feedUrl string, publicKey string, sk string, db *sql.
 	var entity feed.Entity
 	err = row.Scan(&entity.PrivateKey, &entity.URL)
 	if err != nil && err == sql.ErrNoRows {
-		log.Printf("not found feed at url %q as publicKey %s", feedUrl, publicKey)
+		log.Printf("[DEBUG] not found feed at url %q as publicKey %s", feedUrl, publicKey)
 		if _, err := db.Exec(`INSERT INTO feeds (publickey, privatekey, url) VALUES (?, ?, ?)`, publicKey, sk, feedUrl); err != nil {
-			log.Printf("failure: " + err.Error())
+			log.Printf("[ERROR] failure: " + err.Error())
 		} else {
-			log.Printf("saved feed at url %q as publicKey %s", feedUrl, publicKey)
+			log.Printf("[DEBUG] saved feed at url %q as publicKey %s", feedUrl, publicKey)
 		}
 	} else if err != nil {
-		log.Fatalf("failed when trying to retrieve row with pubkey '%s': %v", publicKey, err)
+		log.Fatalf("[ERROR] failed when trying to retrieve row with pubkey '%s': %v", publicKey, err)
 	} else {
-		log.Printf("found feed at url %q as publicKey %s", feedUrl, publicKey)
+		log.Printf("[DEBUG] found feed at url %q as publicKey %s", feedUrl, publicKey)
 	}
 }

@@ -20,6 +20,7 @@ app = "rsslay"
   INFO_CONTACT = "mailto:raul@piraces.dev"
   MAX_CONTENT_LENGTH = 5000
   VERSION = "0.4.4"
+  LOG_LEVEL = "WARN"
 
 [[services]]
   internal_port = 8080

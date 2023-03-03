@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/fiatjaf/relayer"
 	_ "github.com/fiatjaf/relayer"
+	"github.com/hashicorp/logutils"
 	"github.com/hellofresh/health-go/v5"
 	"github.com/kelseyhightower/envconfig"
 	_ "github.com/mattn/go-sqlite3"
@@ -81,6 +82,15 @@ func CreateHealthCheck() {
 	relayInstance.healthCheck = h
 }
 
+func ConfigureLogging() {
+	filter := &logutils.LevelFilter{
+		Levels:   []logutils.LogLevel{"DEBUG", "INFO", "WARN", "ERROR", "FATAL"},
+		MinLevel: logutils.LogLevel(os.Getenv("LOG_LEVEL")),
+		Writer:   os.Stderr,
+	}
+	log.SetOutput(filter)
+}
+
 func (r *Relay) Name() string {
 	return r.RelayName
 }
@@ -113,7 +123,7 @@ func (r *Relay) Init() error {
 	if err != nil {
 		return fmt.Errorf("couldn't process envconfig: %w", err)
 	} else {
-		log.Printf("Running VERSION %s:\n - DSN=%s\n - DB_DIR=%s\n\n", r.Version, *dsn, r.DatabaseDirectory)
+		log.Printf("[INFO] Running VERSION %s:\n - DSN=%s\n - DB_DIR=%s\n\n", r.Version, *dsn, r.DatabaseDirectory)
 	}
 
 	r.db = InitDatabase(r)
@@ -128,7 +138,7 @@ func (r *Relay) UpdateListeningFilters() {
 		time.Sleep(20 * time.Minute)
 
 		filters := relayer.GetListeningFilters()
-		log.Printf("checking for updates; %d filters active", len(filters))
+		log.Printf("[DEBUG] Checking for updates; %d filters active", len(filters))
 
 		var parsedEvents []replayer.EventWithPrivateKey
 		for _, filter := range filters {
@@ -287,22 +297,23 @@ func (r *Relay) GetNIP11InformationDocument() nip11.RelayInformationDocument {
 
 func main() {
 	CreateHealthCheck()
+	ConfigureLogging()
 	defer func(db *sql.DB) {
 		err := db.Close()
 		if err != nil {
-			log.Fatalf("failed to close the database connection: %v", err)
+			log.Fatalf("[FATAL] failed to close the database connection: %v", err)
 		}
 	}(relayInstance.db)
 
 	if err := relayer.Start(relayInstance); err != nil {
-		log.Fatalf("server terminated: %v", err)
+		log.Fatalf("[FATAL] server terminated: %v", err)
 	}
 }
 
 func InitDatabase(r *Relay) *sql.DB {
 	finalConnection := dsn
 	if *dsn == "" {
-		log.Print("dsn required is not present... defaulting to DB_DIR")
+		log.Print("[INFO] dsn required is not present... defaulting to DB_DIR")
 		finalConnection = &r.DatabaseDirectory
 	}
 
@@ -310,20 +321,20 @@ func InitDatabase(r *Relay) *sql.DB {
 	dbPath := path.Dir(*finalConnection)
 	err := os.MkdirAll(dbPath, 0660)
 	if err != nil {
-		log.Printf("unable to initialize DB_DIR at: %s. Error: %v", dbPath, err)
+		log.Printf("[INFO] unable to initialize DB_DIR at: %s. Error: %v", dbPath, err)
 	}
 
 	// Connect to SQLite database.
 	sqlDb, err := sql.Open("sqlite3", *finalConnection)
 	if err != nil {
-		log.Fatalf("open db: %v", err)
+		log.Fatalf("[FATAL] open db: %v", err)
 	}
 
-	log.Printf("database opened at %s", *finalConnection)
+	log.Printf("[INFO] database opened at %s", *finalConnection)
 
 	// Run migration.
 	if _, err := sqlDb.Exec(scripts.SchemaSQL); err != nil {
-		log.Fatalf("cannot migrate schema: %v", err)
+		log.Fatalf("[FATAL] cannot migrate schema: %v", err)
 	}
 
 	return sqlDb
