@@ -28,6 +28,14 @@
 `rsslay` exposes an API to work with it programmatically, so you can automate feed creation and retrieval.
 Checkout the [wiki entry](https://github.com/piraces/rsslay/wiki/API) for further info.
 
+## Mirroring events ("replaying")
+
+Actually `rsslay` makes usage of a method named `AttemptReplayEvents` which is made to send the events to other relays of confidence to attempt to make the events and the profile more reachable (they are just mirror relays)...
+
+This is needed nowadays, with further improvements in relays implementations or clients it may not be needed in the future.
+
+Maybe in the future with other implementations we can avoid that, but nowadays its needed.
+
 ## Running the project
 
 Running `rsslay` its easy, checkout [the wiki entry for it](https://github.com/piraces/rsslay/wiki/Running-the-project).
