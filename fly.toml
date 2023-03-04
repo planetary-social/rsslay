@@ -19,7 +19,7 @@ app = "rsslay"
   INFO_RELAY_NAME = "rsslay public instance"
   INFO_CONTACT = "mailto:raul@piraces.dev"
   MAX_CONTENT_LENGTH = 5000
-  VERSION = "0.4.4"
+  VERSION = "0.4.5"
   LOG_LEVEL = "WARN"
   DELETE_FAILING_FEEDS = "false"
 
