@@ -27,7 +27,7 @@ app = "rsslay"
   internal_port = 8080
   protocol = "tcp"
   [services.concurrency]
-    hard_limit = 150
+    hard_limit = 250
     soft_limit = 100
     type = "connections"
 
