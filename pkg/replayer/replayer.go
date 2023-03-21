@@ -55,12 +55,14 @@ func ReplayEventsToRelays(parameters *ReplayParameters) {
 				if shouldPerformAuthRequest && !tryAuth(relay, *challenge, url, parameters.WaitTimeForRelayResponse, &ev) {
 					continue
 				}
-				publishStatus := relay.Publish(context.Background(), ev.Event)
+				publishStatus, err := relay.Publish(context.Background(), ev.Event)
+				if err != nil {
+					log.Printf("[INFO] Failed to replay event to %s with error: %v", url, err)
+				}
 				statusSummary = statusSummary | int(publishStatus)
 			}
 			if statusSummary < 0 {
 				log.Printf("[WARN] Replayed %d events to %s with failed status summary %d\n", len(parameters.Events), url, statusSummary)
-
 			} else {
 				log.Printf("[DEBUG] Replayed %d events to %s with status summary %d\n", len(parameters.Events), url, statusSummary)
 			}
@@ -101,7 +103,11 @@ func tryAuth(relay *nostr.Relay, challenge string, url string, waitTime int64, e
 
 	// Send the event by calling relay.Auth.
 	// Returned status is either success, fail, or sent (if no reply given in the 3-second timeout).
-	authStatus := relay.Auth(ctx, event)
+	authStatus, err := relay.Auth(ctx, event)
+	if err != nil {
+		log.Printf("[ERROR] Failed while trying to authenticate after sending AUTH event. Error: %v\n", err)
+		return false
+	}
 
 	log.Printf("[DEBUG] authenticated as %s: %s\n", ev.Event.PubKey, authStatus)
 	if authStatus == nostr.PublishStatusSucceeded || authStatus == nostr.PublishStatusSent {

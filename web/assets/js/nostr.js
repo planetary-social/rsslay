@@ -45,7 +45,6 @@ function tryRemoveFromFollowList(publicKeyToUnfollow) {
                 tagsSet.add(value);
             }
         });
-        debugger;
         return [...tagsSet];
     } else {
         swal({
