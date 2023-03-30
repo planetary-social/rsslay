@@ -117,7 +117,7 @@ func EntryFeedToSetMetadata(pubkey string, feed *gofeed.Feed, originalUrl string
 	}
 
 	metadata := map[string]string{
-		"name":  feed.Title + "(RSS Feed)",
+		"name":  feed.Title + " (RSS Feed)",
 		"about": feed.Description + "\n\n" + feed.Link,
 	}
 
