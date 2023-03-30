@@ -334,9 +334,16 @@ func InitDatabase(r *Relay) *sql.DB {
 
 	log.Printf("[INFO] database opened at %s", *finalConnection)
 
-	// Run migration.
+	// Run migrations
 	if _, err := sqlDb.Exec(scripts.SchemaSQL); err != nil {
 		log.Fatalf("[FATAL] cannot migrate schema: %v", err)
+	}
+
+	if _, err := sqlDb.Exec(scripts.CheckNitterColumnSQL); err != nil {
+		_, err := sqlDb.Exec(scripts.CreateNitterColumnSQL)
+		if err != nil {
+			log.Fatalf("[FATAL] cannot migrate schema from previous versions: %v", err)
+		}
 	}
 
 	return sqlDb
