@@ -16,3 +16,4 @@ fly.toml
 .vs
 *.sqlite
 coverage*
+rsslay

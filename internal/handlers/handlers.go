@@ -248,7 +248,8 @@ func createFeedEntry(r *http.Request, db *sql.DB, secret *string) *Entry {
 		return &entry
 	}
 
-	if _, err := feed.ParseFeed(feedUrl); err != nil {
+	parsedFeed, err := feed.ParseFeed(feedUrl)
+	if err != nil {
 		entry.ErrorCode = http.StatusBadRequest
 		entry.Error = true
 		entry.ErrorMessage = "Bad feed: " + err.Error()
@@ -265,7 +266,8 @@ func createFeedEntry(r *http.Request, db *sql.DB, secret *string) *Entry {
 	}
 
 	publicKey = strings.TrimSpace(publicKey)
-	defer insertFeed(err, feedUrl, publicKey, sk, db)
+	isNitterFeed := strings.Contains(parsedFeed.Description, "Twitter feed")
+	defer insertFeed(err, feedUrl, publicKey, sk, isNitterFeed, db)
 
 	entry.Url = feedUrl
 	entry.PubKey = publicKey
@@ -273,14 +275,14 @@ func createFeedEntry(r *http.Request, db *sql.DB, secret *string) *Entry {
 	return &entry
 }
 
-func insertFeed(err error, feedUrl string, publicKey string, sk string, db *sql.DB) {
+func insertFeed(err error, feedUrl string, publicKey string, sk string, nitter bool, db *sql.DB) {
 	row := db.QueryRow("SELECT privatekey, url FROM feeds WHERE publickey=$1", publicKey)
 
 	var entity feed.Entity
 	err = row.Scan(&entity.PrivateKey, &entity.URL)
 	if err != nil && err == sql.ErrNoRows {
 		log.Printf("[DEBUG] not found feed at url %q as publicKey %s", feedUrl, publicKey)
-		if _, err := db.Exec(`INSERT INTO feeds (publickey, privatekey, url) VALUES (?, ?, ?)`, publicKey, sk, feedUrl); err != nil {
+		if _, err := db.Exec(`INSERT INTO feeds (publickey, privatekey, url, nitter) VALUES (?, ?, ?, ?)`, publicKey, sk, feedUrl, nitter); err != nil {
 			log.Printf("[ERROR] failure: %v", err)
 		} else {
 			log.Printf("[DEBUG] saved feed at url %q as publicKey %s", feedUrl, publicKey)

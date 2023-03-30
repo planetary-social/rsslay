@@ -5,3 +5,4 @@ db
 dist
 *.sqlite
 coverage*
+rsslay

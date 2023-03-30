@@ -44,6 +44,18 @@ This is needed nowadays, with further improvements in relays implementations or 
 
 Maybe in the future with other implementations we can avoid that, but nowadays its needed.
 
+## Feeds from Twitter via Nitter instances
+
+The [Nitter](https://github.com/zedeus/nitter) project is well integrated into `rsslay` and it performs special handling of this kind of feeds.
+Currently `rsslay` is doing the following with Nitter feeds:
+- Upgrading to `https` all instances that may be misconfigured.
+- Format some responses and retweets in a more "user-friendly" way.
+- As there are many instances available out there, if one is unreachable at the moment of parsing, a pool of instances is used (configurable):
+  - [birdsite.xanny.family](https://birdsite.xanny.family/)
+  - [notabird.site](https://notabird.site/)
+  - [nitter.moomoo.me](https://nitter.moomoo.me/)
+  - [nitter.fly.dev](https://nitter.fly.dev/)
+
 ## Running the project
 
 Running `rsslay` its easy, checkout [the wiki entry for it](https://github.com/piraces/rsslay/wiki/Running-the-project).

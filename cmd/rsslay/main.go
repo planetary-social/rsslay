@@ -43,6 +43,7 @@ type Relay struct {
 	Version                         string   `envconfig:"VERSION" default:"unknown"`
 	ReplayToRelays                  bool     `envconfig:"REPLAY_TO_RELAYS" default:"false"`
 	RelaysToPublish                 []string `envconfig:"RELAYS_TO_PUBLISH_TO" default:""`
+	NitterInstances                 []string `envconfig:"NITTER_INSTANCES" default:""`
 	DefaultWaitTimeBetweenBatches   int64    `envconfig:"DEFAULT_WAIT_TIME_BETWEEN_BATCHES" default:"60000"`
 	DefaultWaitTimeForRelayResponse int64    `envconfig:"DEFAULT_WAIT_TIME_FOR_RELAY_RESPONSE" default:"3000"`
 	MaxEventsToReplay               int      `envconfig:"MAX_EVENTS_TO_REPLAY" default:"20"`
@@ -145,7 +146,7 @@ func (r *Relay) UpdateListeningFilters() {
 		for _, filter := range filters {
 			if filter.Kinds == nil || slices.Contains(filter.Kinds, nostr.KindTextNote) {
 				for _, pubkey := range filter.Authors {
-					parsedFeed, entity := events.GetParsedFeedForPubKey(pubkey, r.db, r.DeleteFailingFeeds)
+					parsedFeed, entity := events.GetParsedFeedForPubKey(pubkey, r.db, r.DeleteFailingFeeds, r.NitterInstances)
 					if parsedFeed == nil {
 						continue
 					}
@@ -216,7 +217,7 @@ func (b store) QueryEvents(filter *nostr.Filter) ([]nostr.Event, error) {
 	}
 
 	for _, pubkey := range filter.Authors {
-		parsedFeed, entity := events.GetParsedFeedForPubKey(pubkey, relayInstance.db, relayInstance.DeleteFailingFeeds)
+		parsedFeed, entity := events.GetParsedFeedForPubKey(pubkey, relayInstance.db, relayInstance.DeleteFailingFeeds, relayInstance.NitterInstances)
 
 		if parsedFeed == nil {
 			continue
