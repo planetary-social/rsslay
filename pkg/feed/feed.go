@@ -133,14 +133,14 @@ func EntryFeedToSetMetadata(pubkey string, feed *gofeed.Feed, originalUrl string
 
 	content, _ := json.Marshal(metadata)
 
-	createdAt := time.Now()
+	createdAt := time.Unix(time.Now().Unix(), 0)
 	if feed.PublishedParsed != nil {
 		createdAt = *feed.PublishedParsed
 	}
 
 	evt := nostr.Event{
 		PubKey:    pubkey,
-		CreatedAt: createdAt,
+		CreatedAt: nostr.Timestamp(createdAt.Unix()),
 		Kind:      nostr.KindSetMetadata,
 		Tags:      nostr.Tags{},
 		Content:   string(content),
@@ -223,7 +223,7 @@ func ItemToTextNote(pubkey string, item *gofeed.Item, feed *gofeed.Feed, default
 
 	evt := nostr.Event{
 		PubKey:    pubkey,
-		CreatedAt: createdAt,
+		CreatedAt: nostr.Timestamp(createdAt.Unix()),
 		Kind:      nostr.KindTextNote,
 		Tags:      nostr.Tags{},
 		Content:   strings.ToValidUTF8(content, ""),

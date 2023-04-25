@@ -152,13 +152,13 @@ func (r *Relay) UpdateListeningFilters() {
 					}
 
 					for _, item := range parsedFeed.Items {
-						defaultCreatedAt := time.Now()
+						defaultCreatedAt := time.Unix(time.Now().Unix(), 0)
 						evt := feed.ItemToTextNote(pubkey, item, parsedFeed, defaultCreatedAt, entity.URL, relayInstance.MaxContentLength)
 						last, ok := r.lastEmitted.Load(entity.URL)
 						if last == nil {
 							last = uint32(time.Now().Unix())
 						}
-						if !ok || time.Unix(int64(last.(uint32)), 0).Before(evt.CreatedAt) {
+						if !ok || nostr.Timestamp(int64(last.(uint32))) < evt.CreatedAt {
 							_ = evt.Sign(entity.PrivateKey)
 							r.updates <- evt
 							r.lastEmitted.Store(entity.URL, last.(uint32))
@@ -226,10 +226,10 @@ func (b store) QueryEvents(filter *nostr.Filter) ([]nostr.Event, error) {
 		if filter.Kinds == nil || slices.Contains(filter.Kinds, nostr.KindSetMetadata) {
 			evt := feed.EntryFeedToSetMetadata(pubkey, parsedFeed, entity.URL, relayInstance.EnableAutoNIP05Registration, relayInstance.DefaultProfilePictureUrl)
 
-			if filter.Since != nil && evt.CreatedAt.Before(*filter.Since) {
+			if filter.Since != nil && evt.CreatedAt < *filter.Since {
 				continue
 			}
-			if filter.Until != nil && evt.CreatedAt.After(*filter.Until) {
+			if filter.Until != nil && evt.CreatedAt > *filter.Until {
 				continue
 			}
 
@@ -241,25 +241,25 @@ func (b store) QueryEvents(filter *nostr.Filter) ([]nostr.Event, error) {
 		if filter.Kinds == nil || slices.Contains(filter.Kinds, nostr.KindTextNote) {
 			var last uint32 = 0
 			for _, item := range parsedFeed.Items {
-				defaultCreatedAt := time.Now()
+				defaultCreatedAt := time.Unix(time.Now().Unix(), 0)
 				evt := feed.ItemToTextNote(pubkey, item, parsedFeed, defaultCreatedAt, entity.URL, relayInstance.MaxContentLength)
 
 				// Feed need to have a date for each entry...
-				if evt.CreatedAt.Equal(defaultCreatedAt) {
+				if evt.CreatedAt == nostr.Timestamp(defaultCreatedAt.Unix()) {
 					continue
 				}
 
-				if filter.Since != nil && evt.CreatedAt.Before(*filter.Since) {
+				if filter.Since != nil && evt.CreatedAt < *filter.Since {
 					continue
 				}
-				if filter.Until != nil && evt.CreatedAt.After(*filter.Until) {
+				if filter.Until != nil && evt.CreatedAt > *filter.Until {
 					continue
 				}
 
 				_ = evt.Sign(entity.PrivateKey)
 
-				if evt.CreatedAt.After(time.Unix(int64(last), 0)) {
-					last = uint32(evt.CreatedAt.Unix())
+				if evt.CreatedAt > nostr.Timestamp(int64(last)) {
+					last = uint32(evt.CreatedAt)
 				}
 
 				parsedEvents = append(parsedEvents, evt)

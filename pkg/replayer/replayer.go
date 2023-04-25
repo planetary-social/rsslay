@@ -33,7 +33,7 @@ func ReplayEventsToRelays(parameters *ReplayParameters) {
 
 	if eventCount > parameters.MaxEventsToReplay {
 		sort.Slice(parameters.Events, func(i, j int) bool {
-			return parameters.Events[i].Event.CreatedAt.After(parameters.Events[j].Event.CreatedAt)
+			return parameters.Events[i].Event.CreatedAt > parameters.Events[j].Event.CreatedAt
 		})
 		parameters.Events = parameters.Events[:parameters.MaxEventsToReplay]
 	}
