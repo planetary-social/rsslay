@@ -1,5 +1,5 @@
 app = "rsslay"
-primary_region = "mad"
+primary_region = "yyz"
 kill_signal = "SIGINT"
 kill_timeout = 5
 
