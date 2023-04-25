@@ -53,6 +53,6 @@ COPY --from=build /app/web/assets/ ./web/assets/
 
 ADD etc/litefs.yml /etc/litefs.yml
 
-RUN apk add bash fuse sqlite ca-certificates curl
+RUN apk add bash fuse3 sqlite ca-certificates curl
 
 ENTRYPOINT litefs mount -- rsslay -dsn /litefs/rsslay
