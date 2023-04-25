@@ -1,57 +1,59 @@
 app = "rsslay"
+primary_region = "mad"
+kill_signal = "SIGINT"
+kill_timeout = 5
 
 [experimental]
   enable_consul = true
 
 [env]
-  PORT = "8080"
   DB_DIR = "/var/lib/litefs/db"
   DEFAULT_PROFILE_PICTURE_URL = "https://i.imgur.com/MaceU96.png"
-  REPLAY_TO_RELAYS = "true"
-  RELAYS_TO_PUBLISH_TO = "wss://relay.nostrgraph.net,wss://e.nos.lol,wss://nostr.mom,wss://relay.nostr.band,wss://nos.lol,wss://nostr.mutinywallet.com"
-  NITTER_INSTANCES = "birdsite.xanny.family,notabird.site,nitter.moomoo.me,nitter.fly.dev"
   DEFAULT_WAIT_TIME_BETWEEN_BATCHES = "60000"
   DEFAULT_WAIT_TIME_FOR_RELAY_RESPONSE = "1000"
-  MAX_EVENTS_TO_REPLAY = "10"
-  MAIN_DOMAIN_NAME = "rsslay.nostr.moe"
-  ENABLE_AUTO_NIP05_REGISTRATION = "true"
-  OWNER_PUBLIC_KEY = "4ac24d2ee822a34a9881eff526bf71f39704419837e4c14b34642d82e111ed39"
-  MAX_SUBROUTINES = 20
-  INFO_RELAY_NAME = "rsslay public instance"
-  INFO_CONTACT = "mailto:raul@piraces.dev"
-  MAX_CONTENT_LENGTH = 5000
-  VERSION = "0.4.7"
-  LOG_LEVEL = "INFO"
   DELETE_FAILING_FEEDS = "false"
+  ENABLE_AUTO_NIP05_REGISTRATION = "true"
+  INFO_CONTACT = "mailto:raul@piraces.dev"
+  INFO_RELAY_NAME = "rsslay public instance"
+  LOG_LEVEL = "INFO"
+  MAIN_DOMAIN_NAME = "rsslay.nostr.moe"
+  MAX_CONTENT_LENGTH = "5000"
+  MAX_EVENTS_TO_REPLAY = "10"
+  MAX_SUBROUTINES = "20"
+  NITTER_INSTANCES = "birdsite.xanny.family,notabird.site,nitter.moomoo.me,nitter.fly.dev"
+  OWNER_PUBLIC_KEY = "4ac24d2ee822a34a9881eff526bf71f39704419837e4c14b34642d82e111ed39"
+  PORT = "8080"
+  RELAYS_TO_PUBLISH_TO = "wss://relay.nostrgraph.net,wss://e.nos.lol,wss://nostr.mom,wss://relay.nostr.band,wss://nos.lol,wss://nostr.mutinywallet.com"
+  REPLAY_TO_RELAYS = "true"
+  VERSION = "0.4.7"
+
+[[mounts]]
+  source = "rsslay_data_machines"
+  destination = "/var/lib/litefs"
+  processes = ["app"]
 
 [[services]]
-  internal_port = 8080
   protocol = "tcp"
-  [services.concurrency]
-    hard_limit = 250
-    soft_limit = 100
-    type = "connections"
+  internal_port = 8080
 
   [[services.ports]]
-    handlers = ["http"]
     port = 80
+    handlers = ["http"]
     force_https = true
 
   [[services.ports]]
+    port = 443
     handlers = ["tls", "http"]
-    port = "443"
+  [services.concurrency]
+    type = "connections"
+    hard_limit = 250
+    soft_limit = 100
 
   [[services.http_checks]]
-    interval = 10000
+    interval = "10s"
+    timeout = "2s"
     grace_period = "5s"
+    restart_limit = 0
     method = "get"
     path = "/healthz"
     protocol = "http"
-    restart_limit = 0
-    timeout = 2000
-    tls_skip_verify = false
-    [services.http_checks.headers]
-
-[mounts]
-  source="rsslay_data"
-  destination="/var/lib/litefs"
