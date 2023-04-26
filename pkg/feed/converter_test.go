@@ -2,6 +2,8 @@ package feed
 
 import (
 	"fmt"
+	"github.com/nbd-wtf/go-nostr"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -184,7 +186,7 @@ func TestNoteConverter(t *testing.T) {
 		event := converter.Convert(tc.pubKey, tc.item, tc.feed, tc.defaultCreatedAt, tc.originalUrl)
 		assert.NotEmpty(t, event)
 		assert.Equal(t, tc.pubKey, event.PubKey)
-		assert.Equal(t, tc.defaultCreatedAt, event.CreatedAt)
+		assert.Equal(t, tc.defaultCreatedAt, event.CreatedAt.Time())
 		assert.Equal(t, 1, event.Kind)
 		assert.Equal(t, tc.expectedContent, event.Content)
 		assert.Empty(t, event.Sig)
@@ -216,6 +218,46 @@ var sampleSubstackFeedItem = gofeed.Item{
 	GUID:            "https://hardyaka.substack.com/p/this-is-the-universal-ledger",
 }
 
+var expectedSampleSubstackFeedItemEventContent = `**This is the Universal Ledger**
+
+https://substackcdn.com/image/fetch/w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F8366d7e8-05b5-4686-80a8-7648c60d923f_3557x2000.png (https://substackcdn.com/image/fetch/f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F8366d7e8-05b5-4686-80a8-7648c60d923f_3557x2000.png)
+
+This morning, the Universal Ledger (https://uled.io/) came out of stealth mode, having raised $10 million in a seed round from Hard Yaka.
+
+Universal Ledger is a core part of the Hard Yaka ecosystem vision, bringing together tokenized U.S. dollar assets, progressive digital identity, and compliance baked directly into a permissioned blockchain.
+
+The end result is a digital wallet platform that allows businesses and governments to develop wallet experiences with global U.S. dollar access, real-time payments, and 24/7 availability at a fraction of the cost.
+
+- **Introducing the Universal Ledger (https://medium.com/universal-ledger/introducing-the-universal-ledger-5f87aa07fb74)**
+
+
+From the press release:
+
+> _Universal Ledger provides digital asset and payment infrastructure on an identity and compliance-first blockchain. It is the first blockchain platform to apply digital identity to a fully compliant infrastructure, with the ability to control digital assets._
+>
+> _Universal Ledger is a true wallet-as-a-service platform, providing developers and engineers with an API and event-driven architecture on which they can build digital wallet experiences that allow assets to be moved globally, in real time, while maintaining global compliance standards and local jurisdictional identity requirements._
+
+Universal Ledger is helmed by Kirk Chapman, who has 20 years of experience in the payments, banking, and fintech industries, having served as Head of Strategy at Galileo and was advisor to the CEO at SoFi.
+
+- **A conversation with Universal Ledger co-founder and CEO Kirk Chapman (https://medium.com/universal-ledger/a-conversation-with-universal-ledger-co-founder-and-ceo-kirk-chapman-7226df068072)**
+
+
+Here’s Kirk:
+
+> _We’re providing a way for companies to build digital wallet experiences such that they can have peace of mind when it comes to compliance and custody. Universal Ledger fundamentally changes the payments model by leveraging blockchain technology and digital identity, eliminating substantial abuse and fraud. This allows businesses and governments to not only explore new use cases and more efficient disbursement models but also bring previously unreachable people into the contemporary global financial system._
+
+And here’s Hard Yaka partner, Greg Kidd:
+
+> _The Universal Ledger heralds the day when anyone with a baseline identity can hold, send, and receive dollars safely and compliantly. Site and app developers can utilize Universal Ledger’s APIs to include balance payment functions in their offerings while minimizing their regulatory burden because risk and compliance controls are built directly into the ledger itself rather than maintained at the client or wallet level. Balances are global, interoperable, and operate 24/7—powered by blockchain technology, but without the need for traditional crypto fees or tokens._
+
+The Universal Ledger launch was covered by Axios (https://www.axios.com/pro/fintech-deals/2023/04/19/universal-ledger-10m-wallet-as-a-service).
+
+For media inquiries, please reach out to Roger Johnson (mailto:roger@methodcommunications.com).
+
+_**Learn more about Universal Ledger (https://uled.io/)**_
+
+https://hardyaka.substack.com/p/this-is-the-universal-ledger`
+
 func TestLongFormConverter(t *testing.T) {
 	testCases := []struct {
 		pubKey           string
@@ -224,6 +266,7 @@ func TestLongFormConverter(t *testing.T) {
 		defaultCreatedAt time.Time
 		originalUrl      string
 		expectedContent  string
+		expectedTags     nostr.Tags
 	}{
 		{
 			pubKey:           samplePubKey,
@@ -231,7 +274,12 @@ func TestLongFormConverter(t *testing.T) {
 			feed:             &sampleSubstackFeed,
 			defaultCreatedAt: actualTime,
 			originalUrl:      sampleSubstackFeed.FeedLink,
-			expectedContent:  fmt.Sprintf("**RT %s:**\n\n%s\n\n%s", sampleNitterFeedRTItem.DublinCoreExt.Creator[0], sampleNitterFeedRTItem.Description, strings.ReplaceAll(sampleNitterFeedRTItem.Link, "http://", "https://")),
+			expectedContent:  expectedSampleSubstackFeedItemEventContent,
+			expectedTags: nostr.Tags{
+				nostr.Tag{"published_at", strconv.FormatInt(actualTime.Unix(), 10)},
+				nostr.Tag{"d", "https://hardyaka.substack.com/p/this-is-the-universal-ledger"},
+				nostr.Tag{"title", "This is the Universal Ledger"},
+			},
 		},
 	}
 	for _, tc := range testCases {
@@ -240,10 +288,10 @@ func TestLongFormConverter(t *testing.T) {
 		event := converter.Convert(tc.pubKey, tc.item, tc.feed, tc.defaultCreatedAt, tc.originalUrl)
 		assert.NotEmpty(t, event)
 		assert.Equal(t, tc.pubKey, event.PubKey)
-		assert.Equal(t, tc.defaultCreatedAt, event.CreatedAt)
+		assert.Equal(t, tc.defaultCreatedAt, event.CreatedAt.Time())
 		assert.Equal(t, 30023, event.Kind)
 		assert.Equal(t, tc.expectedContent, event.Content)
 		assert.Empty(t, event.Sig)
-		assert.Empty(t, event.Tags)
+		assert.Equal(t, tc.expectedTags, event.Tags)
 	}
 }
