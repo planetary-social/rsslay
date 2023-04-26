@@ -2,12 +2,13 @@ package events
 
 import (
 	"database/sql"
-	"github.com/mmcdole/gofeed"
-	"github.com/piraces/rsslay/pkg/feed"
-	"github.com/piraces/rsslay/pkg/helpers"
 	"log"
 	"net/url"
 	"strings"
+
+	"github.com/mmcdole/gofeed"
+	"github.com/piraces/rsslay/pkg/feed"
+	"github.com/piraces/rsslay/pkg/helpers"
 )
 
 func GetParsedFeedForPubKey(pubKey string, db *sql.DB, deleteFailingFeeds bool, nitterInstances []string) (*gofeed.Feed, feed.Entity) {

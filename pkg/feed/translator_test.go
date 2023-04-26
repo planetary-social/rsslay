@@ -1,9 +1,10 @@
 package feed
 
 import (
+	"testing"
+
 	"github.com/mmcdole/gofeed"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 const feedWithComments = `<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">

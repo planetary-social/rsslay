@@ -2,10 +2,11 @@ package events
 
 import (
 	"errors"
+	"testing"
+
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/piraces/rsslay/pkg/feed"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 const samplePubKey = "73e247ee8c4ff09a50525bed7b0869c371864c0bf2b4d6a2639acaed07613958"

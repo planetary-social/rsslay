@@ -7,6 +7,13 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log"
+	"net/http"
+	"os"
+	"path"
+	"sync"
+	"time"
+
 	"github.com/fiatjaf/relayer"
 	_ "github.com/fiatjaf/relayer"
 	"github.com/hashicorp/logutils"
@@ -21,12 +28,6 @@ import (
 	"github.com/piraces/rsslay/pkg/replayer"
 	"github.com/piraces/rsslay/scripts"
 	"golang.org/x/exp/slices"
-	"log"
-	"net/http"
-	"os"
-	"path"
-	"sync"
-	"time"
 )
 
 // Command line flags.
@@ -62,6 +63,7 @@ type Relay struct {
 	healthCheck        *health.Health
 	mutex              sync.Mutex
 	routineQueueLength int
+	converterSelector  *feed.ConverterSelector
 }
 
 var relayInstance = &Relay{
@@ -132,6 +134,15 @@ func (r *Relay) Init() error {
 
 	go r.UpdateListeningFilters()
 
+	noteConverter, err := feed.NewNoteConverter(relayInstance.MaxContentLength)
+	if err != nil {
+		return fmt.Errorf("error creating a note converter: %w", err)
+	}
+
+	longFormConverter := feed.NewLongFormConverter()
+
+	r.converterSelector = feed.NewConverterSelector(noteConverter, longFormConverter)
+
 	return nil
 }
 
@@ -151,9 +162,11 @@ func (r *Relay) UpdateListeningFilters() {
 						continue
 					}
 
+					converter := r.converterSelector.Select(parsedFeed)
+
 					for _, item := range parsedFeed.Items {
 						defaultCreatedAt := time.Unix(time.Now().Unix(), 0)
-						evt := feed.ItemToTextNote(pubkey, item, parsedFeed, defaultCreatedAt, entity.URL, relayInstance.MaxContentLength)
+						evt := converter.Convert(pubkey, item, parsedFeed, defaultCreatedAt, entity.URL)
 						last, ok := r.lastEmitted.Load(entity.URL)
 						if last == nil {
 							last = uint32(time.Now().Unix())
@@ -223,6 +236,8 @@ func (b store) QueryEvents(filter *nostr.Filter) ([]nostr.Event, error) {
 			continue
 		}
 
+		converter := relayInstance.converterSelector.Select(parsedFeed)
+
 		if filter.Kinds == nil || slices.Contains(filter.Kinds, nostr.KindSetMetadata) {
 			evt := feed.EntryFeedToSetMetadata(pubkey, parsedFeed, entity.URL, relayInstance.EnableAutoNIP05Registration, relayInstance.DefaultProfilePictureUrl)
 
@@ -242,7 +257,7 @@ func (b store) QueryEvents(filter *nostr.Filter) ([]nostr.Event, error) {
 			var last uint32 = 0
 			for _, item := range parsedFeed.Items {
 				defaultCreatedAt := time.Unix(time.Now().Unix(), 0)
-				evt := feed.ItemToTextNote(pubkey, item, parsedFeed, defaultCreatedAt, entity.URL, relayInstance.MaxContentLength)
+				evt := converter.Convert(pubkey, item, parsedFeed, defaultCreatedAt, entity.URL)
 
 				// Feed need to have a date for each entry...
 				if evt.CreatedAt == nostr.Timestamp(defaultCreatedAt.Unix()) {

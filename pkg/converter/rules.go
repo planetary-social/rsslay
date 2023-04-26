@@ -2,9 +2,10 @@ package converter
 
 import (
 	"fmt"
+	"strings"
+
 	md "github.com/JohannesKaufmann/html-to-markdown"
 	"github.com/PuerkitoBio/goquery"
-	"strings"
 )
 
 func GetConverterRules() []md.Rule {
