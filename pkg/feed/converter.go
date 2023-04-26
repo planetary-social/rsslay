@@ -52,7 +52,7 @@ func NewNoteConverter(maxContentLength int) (*NoteConverter, error) {
 }
 
 func (s *NoteConverter) Convert(pubkey string, item *gofeed.Item, feed *gofeed.Feed, defaultCreatedAt time.Time, originalUrl string) nostr.Event {
-	content := buildContent(item, feed, originalUrl, s.maxContentLength)
+	content := buildContent(item, feed, originalUrl, s.maxContentLength, converter.GetNoteConverterRules())
 
 	createdAt := defaultCreatedAt
 	if item.UpdatedParsed != nil {
@@ -82,7 +82,7 @@ func NewLongFormConverter() *LongFormConverter {
 }
 
 func (l *LongFormConverter) Convert(pubkey string, item *gofeed.Item, feed *gofeed.Feed, defaultCreatedAt time.Time, originalUrl string) nostr.Event {
-	content := buildContent(item, feed, originalUrl, 0)
+	content := buildContent(item, feed, originalUrl, 0, converter.GetLongFormConverterRules())
 
 	createdAt := defaultCreatedAt
 	if item.UpdatedParsed != nil {
@@ -116,14 +116,14 @@ func (l *LongFormConverter) Convert(pubkey string, item *gofeed.Item, feed *gofe
 	return evt
 }
 
-func buildContent(item *gofeed.Item, feed *gofeed.Feed, originalUrl string, maxContentLength int) string {
+func buildContent(item *gofeed.Item, feed *gofeed.Feed, originalUrl string, maxContentLength int, converterRules []md.Rule) string {
 	content := ""
 	if item.Title != "" {
 		content = "**" + item.Title + "**"
 	}
 
-	itemDescription := htmlToMarkdown(item.Description)
-	itemContent := htmlToMarkdown(item.Content)
+	itemDescription := htmlToMarkdown(item.Description, converterRules)
+	itemContent := htmlToMarkdown(item.Content, converterRules)
 
 	if maxContentLength == 0 && len(itemContent) != 0 {
 		content += "\n\n" + itemContent
@@ -179,9 +179,9 @@ func buildContent(item *gofeed.Item, feed *gofeed.Feed, originalUrl string, maxC
 	return strings.ToValidUTF8(content, "")
 }
 
-func htmlToMarkdown(s string) string {
+func htmlToMarkdown(s string, converterRules []md.Rule) string {
 	mdConverter := md.NewConverter("", true, nil)
-	mdConverter.AddRules(converter.GetConverterRules()...)
+	mdConverter.AddRules(converterRules...)
 
 	convertedS, err := mdConverter.ConvertString(s)
 	if err != nil {

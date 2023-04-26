@@ -220,7 +220,7 @@ var sampleSubstackFeedItem = gofeed.Item{
 
 var expectedSampleSubstackFeedItemEventContent = `**This is the Universal Ledger**
 
-https://substackcdn.com/image/fetch/w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F8366d7e8-05b5-4686-80a8-7648c60d923f_3557x2000.png (https://substackcdn.com/image/fetch/f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F8366d7e8-05b5-4686-80a8-7648c60d923f_3557x2000.png)
+![](https://substackcdn.com/image/fetch/w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F8366d7e8-05b5-4686-80a8-7648c60d923f_3557x2000.png) (https://substackcdn.com/image/fetch/f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F8366d7e8-05b5-4686-80a8-7648c60d923f_3557x2000.png)
 
 This morning, the Universal Ledger (https://uled.io/) came out of stealth mode, having raised $10 million in a seed round from Hard Yaka.
 
