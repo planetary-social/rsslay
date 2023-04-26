@@ -2,7 +2,6 @@ package feed
 
 import (
 	"fmt"
-	"github.com/nbd-wtf/go-nostr"
 	"strconv"
 	"strings"
 	"testing"
@@ -10,6 +9,7 @@ import (
 
 	"github.com/mmcdole/gofeed"
 	ext "github.com/mmcdole/gofeed/extensions"
+	"github.com/nbd-wtf/go-nostr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
