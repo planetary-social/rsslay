@@ -2,12 +2,13 @@ package replayer
 
 import (
 	"context"
-	"github.com/nbd-wtf/go-nostr"
-	"github.com/nbd-wtf/go-nostr/nip42"
 	"log"
 	"sort"
 	"sync"
 	"time"
+
+	"github.com/nbd-wtf/go-nostr"
+	"github.com/nbd-wtf/go-nostr/nip42"
 )
 
 type ReplayParameters struct {

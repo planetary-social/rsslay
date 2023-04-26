@@ -1,9 +1,10 @@
 package helpers
 
 import (
-	"golang.org/x/exp/slices"
 	"net/url"
 	"path"
+
+	"golang.org/x/exp/slices"
 )
 
 var validSchemas = []string{"https", "http"}

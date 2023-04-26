@@ -3,13 +3,6 @@ package handlers
 import (
 	"database/sql"
 	"encoding/json"
-	_ "github.com/mattn/go-sqlite3"
-	"github.com/nbd-wtf/go-nostr"
-	"github.com/nbd-wtf/go-nostr/nip05"
-	"github.com/nbd-wtf/go-nostr/nip19"
-	"github.com/piraces/rsslay/pkg/feed"
-	"github.com/piraces/rsslay/pkg/helpers"
-	"github.com/piraces/rsslay/web/templates"
 	"html/template"
 	"log"
 	"net/http"
@@ -17,6 +10,14 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	_ "github.com/mattn/go-sqlite3"
+	"github.com/nbd-wtf/go-nostr"
+	"github.com/nbd-wtf/go-nostr/nip05"
+	"github.com/nbd-wtf/go-nostr/nip19"
+	"github.com/piraces/rsslay/pkg/feed"
+	"github.com/piraces/rsslay/pkg/helpers"
+	"github.com/piraces/rsslay/web/templates"
 )
 
 var t = template.Must(template.ParseFS(templates.Templates, "*.tmpl"))
