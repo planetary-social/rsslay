@@ -116,9 +116,18 @@ func EntryFeedToSetMetadata(pubkey string, feed *gofeed.Feed, originalUrl string
 		}
 	}
 
+	var theDescription = feed.Description
+	var theFeedTitle = feed.Title
+	if strings.Contains(feed.Link, "reddit.com") {
+		var subredditParsePart1 = strings.Split(feed.Link, "/r/")
+		var subredditParsePart2 = strings.Split(subredditParsePart1[1], "/")
+		theDescription = feed.Description + fmt.Sprintf(" #%s", subredditParsePart2[0])
+
+		theFeedTitle = "/r/" + subredditParsePart2[0]
+	}
 	metadata := map[string]string{
-		"name":  feed.Title + " (RSS Feed)",
-		"about": feed.Description + "\n\n" + feed.Link,
+		"name":  theFeedTitle + " (RSS Feed)",
+		"about": theDescription + "\n\n" + feed.Link,
 	}
 
 	if enableAutoRegistration {
@@ -166,7 +175,7 @@ func ItemToTextNote(pubkey string, item *gofeed.Item, feed *gofeed.Feed, default
 		description = p.Sanitize(item.Description)
 	}
 
-	if !strings.EqualFold(item.Title, description) && !strings.Contains(feed.Link, "stacker.news") {
+	if !strings.EqualFold(item.Title, description) && !strings.Contains(feed.Link, "stacker.news") && !strings.Contains(feed.Link, "reddit.com") {
 		content += "\n\n" + description
 	}
 
@@ -193,6 +202,15 @@ func ItemToTextNote(pubkey string, item *gofeed.Item, feed *gofeed.Feed, default
 			}
 		}
 		content += description
+	}
+
+	if strings.Contains(feed.Link, "reddit.com") {
+		var subredditParsePart1 = strings.Split(feed.Link, "/r/")
+		var subredditParsePart2 = strings.Split(subredditParsePart1[1], "/")
+		var theHashtag = fmt.Sprintf(" #%s", subredditParsePart2[0])
+
+		content = content + "\n\n" + theHashtag
+
 	}
 
 	content = html.UnescapeString(content)
