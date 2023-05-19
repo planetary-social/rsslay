@@ -105,7 +105,7 @@ func ParseFeed(url string) (*gofeed.Feed, error) {
 	return feed, nil
 }
 
-func EntryFeedToSetMetadata(pubkey string, feed *gofeed.Feed, originalUrl string, enableAutoRegistration bool, defaultProfilePictureUrl string) nostr.Event {
+func EntryFeedToSetMetadata(pubkey string, feed *gofeed.Feed, originalUrl string, enableAutoRegistration bool, defaultProfilePictureUrl string, mainDomainName string) nostr.Event {
 	// Handle Nitter special cases (http schema)
 	if strings.Contains(feed.Description, "Twitter feed") {
 		if strings.HasPrefix(originalUrl, "https://") {
@@ -131,7 +131,7 @@ func EntryFeedToSetMetadata(pubkey string, feed *gofeed.Feed, originalUrl string
 	}
 
 	if enableAutoRegistration {
-		metadata["nip05"] = fmt.Sprintf("%s@%s", originalUrl, "rsslay.nostr.moe")
+		metadata["nip05"] = fmt.Sprintf("%s@%s", originalUrl, mainDomainName)
 	}
 
 	if feed.Image != nil {

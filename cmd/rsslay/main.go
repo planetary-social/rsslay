@@ -224,7 +224,7 @@ func (b store) QueryEvents(filter *nostr.Filter) ([]nostr.Event, error) {
 		}
 
 		if filter.Kinds == nil || slices.Contains(filter.Kinds, nostr.KindSetMetadata) {
-			evt := feed.EntryFeedToSetMetadata(pubkey, parsedFeed, entity.URL, relayInstance.EnableAutoNIP05Registration, relayInstance.DefaultProfilePictureUrl)
+			evt := feed.EntryFeedToSetMetadata(pubkey, parsedFeed, entity.URL, relayInstance.EnableAutoNIP05Registration, relayInstance.DefaultProfilePictureUrl, relayInstance.MainDomainName)
 
 			if filter.Since != nil && evt.CreatedAt < *filter.Since {
 				continue
