@@ -55,7 +55,11 @@ func ReplayEventsToRelays(parameters *ReplayParameters) {
 					continue
 				}
 
-				relay = connectToRelay(url)
+				err := relay.Connection.Ping()
+				if err != nil {
+					log.Printf("[DEBUG] ping to relay failed, reconnecting to %s because of error: %v\n", url, err)
+					relay = connectToRelay(url)
+				}
 				publishStatus, err := relay.Publish(context.Background(), ev.Event)
 				_ = relay.Close()
 				if err != nil {
