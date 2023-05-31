@@ -25,19 +25,15 @@ type ItemToEventConverter interface {
 }
 
 type ConverterSelector struct {
-	noteConverter     ItemToEventConverter
 	longFormConverter ItemToEventConverter
 }
 
-func NewConverterSelector(noteConverter ItemToEventConverter, longFormConverter ItemToEventConverter) *ConverterSelector {
-	return &ConverterSelector{noteConverter: noteConverter, longFormConverter: longFormConverter}
+func NewConverterSelector(longFormConverter ItemToEventConverter) *ConverterSelector {
+	return &ConverterSelector{longFormConverter: longFormConverter}
 }
 
 func (s *ConverterSelector) Select(feed *gofeed.Feed) ItemToEventConverter {
-	if strings.Contains(feed.Link, "substack.com") {
-		return s.longFormConverter
-	}
-	return s.noteConverter
+	return s.longFormConverter
 }
 
 type NoteConverter struct {
