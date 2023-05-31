@@ -134,14 +134,8 @@ func (r *Relay) Init() error {
 
 	go r.UpdateListeningFilters()
 
-	noteConverter, err := feed.NewNoteConverter(relayInstance.MaxContentLength)
-	if err != nil {
-		return fmt.Errorf("error creating a note converter: %w", err)
-	}
-
 	longFormConverter := feed.NewLongFormConverter()
-
-	r.converterSelector = feed.NewConverterSelector(noteConverter, longFormConverter)
+	r.converterSelector = feed.NewConverterSelector(longFormConverter)
 
 	return nil
 }
