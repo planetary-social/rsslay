@@ -1,24 +1,19 @@
 package custom_cache
 
 import (
-	"github.com/dgraph-io/ristretto"
+	"github.com/allegro/bigcache"
 	"github.com/eko/gocache/lib/v4/cache"
-	store "github.com/eko/gocache/store/ristretto/v4"
-	"log"
+	bigcache_store "github.com/eko/gocache/store/bigcache/v4"
+	"time"
 )
 
-var MainCache *cache.Cache[string]
+var MainCache *cache.Cache[[]byte]
+var Initialized = false
 
 func InitializeCache() {
-	ristrettoCache, err := ristretto.NewCache(&ristretto.Config{
-		NumCounters: 1000,
-		MaxCost:     400000000,
-		BufferItems: 64,
-	})
-	if err != nil {
-		log.Fatalf("[FATAL] failed to initialize internal custom_cache: %v", err)
-	}
-	ristrettoStore := store.NewRistretto(ristrettoCache)
+	bigcacheClient, _ := bigcache.NewBigCache(bigcache.DefaultConfig(60 * time.Minute))
+	bigcacheStore := bigcache_store.NewBigcache(bigcacheClient)
 
-	MainCache = cache.New[string](ristrettoStore)
+	MainCache = cache.New[[]byte](bigcacheStore)
+	Initialized = true
 }

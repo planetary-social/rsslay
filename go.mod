@@ -6,9 +6,9 @@ require (
 	github.com/DATA-DOG/go-sqlmock v1.5.0
 	github.com/JohannesKaufmann/html-to-markdown v1.4.0
 	github.com/PuerkitoBio/goquery v1.8.1
-	github.com/dgraph-io/ristretto v0.1.1
+	github.com/allegro/bigcache v1.2.1
 	github.com/eko/gocache/lib/v4 v4.1.3
-	github.com/eko/gocache/store/ristretto/v4 v4.1.2
+	github.com/eko/gocache/store/bigcache/v4 v4.1.2
 	github.com/fiatjaf/relayer v1.7.3
 	github.com/hashicorp/logutils v1.0.0
 	github.com/hellofresh/health-go/v5 v5.1.1
@@ -33,11 +33,9 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/decred/dcrd/crypto/blake256 v1.0.0 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.1.0 // indirect
-	github.com/dustin/go-humanize v1.0.0 // indirect
 	github.com/gobwas/httphead v0.1.0 // indirect
 	github.com/gobwas/pool v0.2.1 // indirect
 	github.com/gobwas/ws v1.2.0 // indirect
-	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b // indirect
 	github.com/golang/mock v1.6.0 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/gorilla/css v1.0.0 // indirect
@@ -50,7 +48,6 @@ require (
 	github.com/mmcdole/goxpp v1.1.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
-	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/client_model v0.3.0 // indirect
 	github.com/prometheus/common v0.42.0 // indirect

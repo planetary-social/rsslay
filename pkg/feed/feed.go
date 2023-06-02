@@ -11,7 +11,6 @@ import (
 	"fmt"
 	md "github.com/JohannesKaufmann/html-to-markdown"
 	"github.com/PuerkitoBio/goquery"
-	"github.com/eko/gocache/lib/v4/store"
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/mmcdole/gofeed"
 	"github.com/nbd-wtf/go-nostr"
@@ -89,14 +88,21 @@ func GetFeedURL(url string) string {
 }
 
 func ParseFeed(url string) (*gofeed.Feed, error) {
-	if feedString, err := custom_cache.MainCache.Get(context.Background(), url); err != nil && feedString != "" {
+	if !custom_cache.Initialized {
+		custom_cache.InitializeCache()
+	}
+
+	feedBytes, err := custom_cache.MainCache.Get(context.Background(), url)
+	if err == nil {
 		metrics.CacheHits.Inc()
-		feed, err := fp.ParseString(feedString)
-		if err == nil {
+		feed, err := fp.ParseString(string(feedBytes))
+		if err != nil {
 			return feed, nil
 		} else {
 			log.Printf("[ERROR] failure to parse cache stored feed: %v", err)
 		}
+	} else {
+		log.Printf("[DEBUG] entry not found in cache: %v", err)
 	}
 
 	metrics.CacheMiss.Inc()
@@ -110,7 +116,7 @@ func ParseFeed(url string) (*gofeed.Feed, error) {
 	for i := range feed.Items {
 		feed.Items[i].Content = ""
 	}
-	err = custom_cache.MainCache.Set(context.Background(), url, feed.String(), store.WithExpiration(60*time.Minute))
+	err = custom_cache.MainCache.Set(context.Background(), url, []byte(feed.String()))
 	if err != nil {
 		log.Printf("[ERROR] failure to store into cache feed: %v", err)
 	}
