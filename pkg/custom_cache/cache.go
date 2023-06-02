@@ -14,7 +14,6 @@ func InitializeCache() {
 		NumCounters: 1000,
 		MaxCost:     400000000,
 		BufferItems: 64,
-		Metrics:     true,
 	})
 	if err != nil {
 		log.Fatalf("[FATAL] failed to initialize internal custom_cache: %v", err)

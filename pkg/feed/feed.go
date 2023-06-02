@@ -18,6 +18,7 @@ import (
 	"github.com/piraces/rsslay/pkg/converter"
 	"github.com/piraces/rsslay/pkg/custom_cache"
 	"github.com/piraces/rsslay/pkg/helpers"
+	"github.com/piraces/rsslay/pkg/metrics"
 	"html"
 	"log"
 	"net/http"
@@ -89,14 +90,16 @@ func GetFeedURL(url string) string {
 
 func ParseFeed(url string) (*gofeed.Feed, error) {
 	if feedString, err := custom_cache.MainCache.Get(context.Background(), url); err != nil && feedString != "" {
+		metrics.CacheHits.Inc()
 		feed, err := fp.ParseString(feedString)
 		if err == nil {
 			return feed, nil
 		} else {
-			log.Printf("[WARN] failure to parse cache stored feed: %v", err)
+			log.Printf("[ERROR] failure to parse cache stored feed: %v", err)
 		}
 	}
 
+	metrics.CacheMiss.Inc()
 	fp.RSSTranslator = NewCustomTranslator()
 	feed, err := fp.ParseURL(url)
 	if err != nil {
@@ -109,7 +112,7 @@ func ParseFeed(url string) (*gofeed.Feed, error) {
 	}
 	err = custom_cache.MainCache.Set(context.Background(), url, feed.String(), store.WithExpiration(60*time.Minute))
 	if err != nil {
-		return nil, err
+		log.Printf("[ERROR] failure to store into cache feed: %v", err)
 	}
 
 	return feed, nil

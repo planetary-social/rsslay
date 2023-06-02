@@ -42,6 +42,14 @@ var (
 		Name: "rsslay_processed_listening_filters_ops_total",
 		Help: "The total number of updated listening filters",
 	})
+	CacheHits = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "rsslay_processed_cache_hits_ops_total",
+		Help: "The total number of cache hits",
+	})
+	CacheMiss = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "rsslay_processed_cache_miss_ops_total",
+		Help: "The total number of cache misses",
+	})
 	ReplayRoutineQueueLength = promauto.NewGauge(prometheus.GaugeOpts{
 		Name: "rsslay_replay_routines_queue_length",
 		Help: "Current number of subroutines to replay events to other relays",
