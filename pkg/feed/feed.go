@@ -1,6 +1,7 @@
 package feed
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"database/sql"
@@ -10,12 +11,13 @@ import (
 	"fmt"
 	md "github.com/JohannesKaufmann/html-to-markdown"
 	"github.com/PuerkitoBio/goquery"
+	"github.com/eko/gocache/lib/v4/store"
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/mmcdole/gofeed"
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/piraces/rsslay/pkg/converter"
+	"github.com/piraces/rsslay/pkg/custom_cache"
 	"github.com/piraces/rsslay/pkg/helpers"
-	"github.com/rif/cache2go"
 	"html"
 	"log"
 	"net/http"
@@ -24,9 +26,8 @@ import (
 )
 
 var (
-	fp        = gofeed.NewParser()
-	feedCache = cache2go.New(512, time.Minute*19)
-	client    = &http.Client{
+	fp     = gofeed.NewParser()
+	client = &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			if len(via) >= 2 {
 				return errors.New("stopped after 2 redirects")
@@ -87,9 +88,15 @@ func GetFeedURL(url string) string {
 }
 
 func ParseFeed(url string) (*gofeed.Feed, error) {
-	if feed, ok := feedCache.Get(url); ok {
-		return feed.(*gofeed.Feed), nil
+	if feedString, err := custom_cache.MainCache.Get(context.Background(), url); err != nil && feedString != "" {
+		feed, err := fp.ParseString(feedString)
+		if err == nil {
+			return feed, nil
+		} else {
+			log.Printf("[WARN] failure to parse cache stored feed: %v", err)
+		}
 	}
+
 	fp.RSSTranslator = NewCustomTranslator()
 	feed, err := fp.ParseURL(url)
 	if err != nil {
@@ -100,7 +107,10 @@ func ParseFeed(url string) (*gofeed.Feed, error) {
 	for i := range feed.Items {
 		feed.Items[i].Content = ""
 	}
-	feedCache.Set(url, feed)
+	err = custom_cache.MainCache.Set(context.Background(), url, feed.String(), store.WithExpiration(60*time.Minute))
+	if err != nil {
+		return nil, err
+	}
 
 	return feed, nil
 }

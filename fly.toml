@@ -6,6 +6,10 @@ kill_timeout = 5
 [experimental]
   enable_consul = true
 
+[metrics]
+  port = 8080
+  path = "/metrics"
+
 [env]
   DB_DIR = "/var/lib/litefs/db"
   DEFAULT_PROFILE_PICTURE_URL = "https://i.imgur.com/MaceU96.png"

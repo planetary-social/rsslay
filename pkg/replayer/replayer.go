@@ -4,6 +4,8 @@ import (
 	"context"
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/nbd-wtf/go-nostr/nip42"
+	"github.com/piraces/rsslay/pkg/metrics"
+	"github.com/prometheus/client_golang/prometheus"
 	"log"
 	"sort"
 	"sync"
@@ -61,6 +63,14 @@ func ReplayEventsToRelays(parameters *ReplayParameters) {
 					relay = connectToRelay(url)
 				}
 				publishStatus, err := relay.Publish(context.Background(), ev.Event)
+				switch publishStatus {
+				case nostr.PublishStatusSent:
+					metrics.ReplayEvents.With(prometheus.Labels{"relay": url}).Inc()
+					break
+				default:
+					metrics.ReplayErrorEvents.With(prometheus.Labels{"relay": url}).Inc()
+					break
+				}
 				_ = relay.Close()
 				if err != nil {
 					log.Printf("[INFO] Failed to replay event to %s with error: %v", url, err)
@@ -77,6 +87,7 @@ func ReplayEventsToRelays(parameters *ReplayParameters) {
 		}
 		time.Sleep(time.Duration(parameters.WaitTime) * time.Millisecond)
 		*parameters.Queue--
+		metrics.ReplayRoutineQueueLength.Set(float64(*parameters.Queue))
 		parameters.Mutex.Unlock()
 	}()
 }

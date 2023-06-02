@@ -9,6 +9,7 @@ import (
 	"github.com/nbd-wtf/go-nostr/nip19"
 	"github.com/piraces/rsslay/pkg/feed"
 	"github.com/piraces/rsslay/pkg/helpers"
+	"github.com/piraces/rsslay/pkg/metrics"
 	"github.com/piraces/rsslay/web/templates"
 	"html/template"
 	"log"
@@ -43,6 +44,7 @@ func HandleWebpage(w http.ResponseWriter, r *http.Request, db *sql.DB, mainDomai
 		return
 	}
 
+	metrics.IndexRequests.Inc()
 	var count uint64
 	row := db.QueryRow(`SELECT count(*) FROM feeds`)
 	err := row.Scan(&count)
@@ -88,6 +90,7 @@ func HandleSearch(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		return
 	}
 
+	metrics.SearchRequests.Inc()
 	query := r.URL.Query().Get("query")
 	if query == "" || len(query) <= 4 {
 		http.Error(w, "Please enter more than 5 characters to search", 400)
@@ -139,6 +142,7 @@ func HandleCreateFeed(w http.ResponseWriter, r *http.Request, db *sql.DB, secret
 		return
 	}
 
+	metrics.CreateRequests.Inc()
 	entry := createFeedEntry(r, db, secret)
 	_ = t.ExecuteTemplate(w, "created.html.tmpl", entry)
 }
@@ -152,6 +156,7 @@ func HandleApiFeed(w http.ResponseWriter, r *http.Request, db *sql.DB, secret *s
 }
 
 func HandleNip05(w http.ResponseWriter, r *http.Request, db *sql.DB, ownerPubKey *string, enableAutoRegistration *bool) {
+	metrics.WellKnownRequests.Inc()
 	name := r.URL.Query().Get("name")
 	name, _ = url.QueryUnescape(name)
 	w.Header().Set("Content-Type", "application/json")
@@ -188,6 +193,7 @@ func handleCreateFeedEntry(w http.ResponseWriter, r *http.Request, db *sql.DB, s
 		return
 	}
 
+	metrics.CreateRequestsAPI.Inc()
 	entry := createFeedEntry(r, db, secret)
 	w.Header().Set("Content-Type", "application/json")
 

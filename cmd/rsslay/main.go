@@ -7,6 +7,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/eko/gocache/lib/v4/cache"
 	"github.com/fiatjaf/relayer"
 	_ "github.com/fiatjaf/relayer"
 	"github.com/hashicorp/logutils"
@@ -16,10 +17,13 @@ import (
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/nbd-wtf/go-nostr/nip11"
 	"github.com/piraces/rsslay/internal/handlers"
+	"github.com/piraces/rsslay/pkg/custom_cache"
 	"github.com/piraces/rsslay/pkg/events"
 	"github.com/piraces/rsslay/pkg/feed"
+	"github.com/piraces/rsslay/pkg/metrics"
 	"github.com/piraces/rsslay/pkg/replayer"
 	"github.com/piraces/rsslay/scripts"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"golang.org/x/exp/slices"
 	"log"
 	"net/http"
@@ -62,6 +66,7 @@ type Relay struct {
 	healthCheck        *health.Health
 	mutex              sync.Mutex
 	routineQueueLength int
+	cache              *cache.Cache[string]
 }
 
 var relayInstance = &Relay{
@@ -117,6 +122,7 @@ func (r *Relay) OnInitialized(s *relayer.Server) {
 	s.Router().Path("/.well-known/nostr.json").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		handlers.HandleNip05(writer, request, r.db, &r.OwnerPublicKey, &r.EnableAutoNIP05Registration)
 	})
+	s.Router().Path("/metrics").Handler(promhttp.Handler())
 }
 
 func (r *Relay) Init() error {
@@ -138,6 +144,7 @@ func (r *Relay) Init() error {
 func (r *Relay) UpdateListeningFilters() {
 	for {
 		time.Sleep(20 * time.Minute)
+		metrics.ListeningFiltersOps.Inc()
 
 		filters := relayer.GetListeningFilters()
 		log.Printf("[DEBUG] Checking for updates; %d filters active", len(filters))
@@ -175,6 +182,7 @@ func (r *Relay) UpdateListeningFilters() {
 func (r *Relay) AttemptReplayEvents(events []replayer.EventWithPrivateKey) {
 	if relayInstance.ReplayToRelays && relayInstance.routineQueueLength < relayInstance.MaxSubroutines && len(events) > 0 {
 		r.routineQueueLength++
+		metrics.ReplayRoutineQueueLength.Set(float64(r.routineQueueLength))
 		replayer.ReplayEventsToRelays(&replayer.ReplayParameters{
 			MaxEventsToReplay:        relayInstance.MaxEventsToReplay,
 			RelaysToPublish:          relayInstance.RelaysToPublish,
@@ -188,6 +196,7 @@ func (r *Relay) AttemptReplayEvents(events []replayer.EventWithPrivateKey) {
 }
 
 func (r *Relay) AcceptEvent(_ *nostr.Event) bool {
+	metrics.InvalidEventsRequests.Inc()
 	return false
 }
 
@@ -201,16 +210,20 @@ type store struct {
 
 func (b store) Init() error { return nil }
 func (b store) SaveEvent(_ *nostr.Event) error {
+	metrics.InvalidEventsRequests.Inc()
 	return errors.New("blocked: we don't accept any events")
 }
 
 func (b store) DeleteEvent(_, _ string) error {
+	metrics.InvalidEventsRequests.Inc()
 	return errors.New("blocked: we can't delete any events")
 }
 
 func (b store) QueryEvents(filter *nostr.Filter) ([]nostr.Event, error) {
 	var parsedEvents []nostr.Event
 	var eventsToReplay []replayer.EventWithPrivateKey
+
+	metrics.QueryEventsRequests.Inc()
 
 	if filter.IDs != nil || len(filter.Tags) > 0 {
 		return parsedEvents, nil
@@ -280,6 +293,7 @@ func (r *Relay) InjectEvents() chan nostr.Event {
 }
 
 func (r *Relay) GetNIP11InformationDocument() nip11.RelayInformationDocument {
+	metrics.RelayInfoRequests.Inc()
 	infoDocument := nip11.RelayInformationDocument{
 		Name:          relayInstance.Name(),
 		Description:   "Relay that creates virtual nostr profiles for each RSS feed submitted, powered by the relayer framework",
@@ -300,6 +314,7 @@ func (r *Relay) GetNIP11InformationDocument() nip11.RelayInformationDocument {
 func main() {
 	CreateHealthCheck()
 	ConfigureLogging()
+	custom_cache.InitializeCache()
 	defer func(db *sql.DB) {
 		err := db.Close()
 		if err != nil {
