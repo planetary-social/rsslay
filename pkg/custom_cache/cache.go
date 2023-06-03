@@ -7,8 +7,6 @@ import (
 	"github.com/eko/gocache/lib/v4/store"
 	bigcache_store "github.com/eko/gocache/store/bigcache/v4"
 	redis_store "github.com/eko/gocache/store/redis/v4"
-	"github.com/piraces/rsslay/pkg/metrics"
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/redis/go-redis/v9"
 	"log"
 	"time"
@@ -74,8 +72,7 @@ func getFromRedis(key string) (string, error) {
 	case redis.Nil:
 		log.Printf("[DEBUG] Failed to find the key '%s' from the redis cache.", key)
 	default:
-		log.Printf("[ERROR] Failed to get the value from the redis cache with key '%s': %v", key, err)
-		metrics.AppErrors.With(prometheus.Labels{"type": "CACHE"}).Inc()
+		log.Printf("[DEBUG] Failed to get the value from the redis cache with key '%s': %v", key, err)
 	}
 	return value, err
 }
