@@ -26,7 +26,7 @@ const sampleValidIndirectFeedUrl = "https://www.rssboard.org/"
 const sampleValidIndirectFeedUrlExpected = "http://feeds.rssboard.org/rssboard"
 const sampleValidWithoutFeedUrl = "https://go.dev/"
 const sampleValidWithRelativeFeedUrl = "https://golangweekly.com/"
-const sampleValidWithRelativeFeedUrlExpected = "https://golangweekly.com/rss"
+const sampleValidWithRelativeFeedUrlExpected = "https://nitter.moomoo.me/coldplay/rss"
 
 var actualTime = time.Unix(time.Now().Unix(), 0)
 var sampleNitterFeed = gofeed.Feed{

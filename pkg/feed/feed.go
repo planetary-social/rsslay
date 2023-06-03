@@ -91,12 +91,14 @@ func ParseFeed(url string) (*gofeed.Feed, error) {
 	feedString, err := custom_cache.Get(url)
 	if err == nil {
 		metrics.CacheHits.Inc()
-		feed, err := fp.ParseString(feedString)
+
+		var feed gofeed.Feed
+		err := json.Unmarshal([]byte(feedString), &feed)
 		if err != nil {
 			log.Printf("[ERROR] failure to parse cache stored feed: %v", err)
 			metrics.AppErrors.With(prometheus.Labels{"type": "CACHE_PARSE"}).Inc()
 		} else {
-			return feed, nil
+			return &feed, nil
 		}
 	} else {
 		log.Printf("[DEBUG] entry not found in cache: %v", err)
@@ -113,7 +115,12 @@ func ParseFeed(url string) (*gofeed.Feed, error) {
 	for i := range feed.Items {
 		feed.Items[i].Content = ""
 	}
-	err = custom_cache.Set(url, feed.String())
+
+	marshal, err := json.Marshal(feed)
+	if err == nil {
+		err = custom_cache.Set(url, string(marshal))
+	}
+
 	if err != nil {
 		log.Printf("[ERROR] failure to store into cache feed: %v", err)
 		metrics.AppErrors.With(prometheus.Labels{"type": "CACHE_SET"}).Inc()
@@ -128,7 +135,10 @@ func EntryFeedToSetMetadata(pubkey string, feed *gofeed.Feed, originalUrl string
 		if strings.HasPrefix(originalUrl, "https://") {
 			feed.Description = strings.ReplaceAll(feed.Description, "http://", "https://")
 			feed.Title = strings.ReplaceAll(feed.Title, "http://", "https://")
-			feed.Image.URL = strings.ReplaceAll(feed.Image.URL, "http://", "https://")
+			if feed.Image != nil {
+				feed.Image.URL = strings.ReplaceAll(feed.Image.URL, "http://", "https://")
+			}
+
 			feed.Link = strings.ReplaceAll(feed.Link, "http://", "https://")
 		}
 	}
