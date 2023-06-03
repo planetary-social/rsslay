@@ -33,6 +33,7 @@ Checkout the [wiki entry](https://github.com/piraces/rsslay/wiki/API) for furthe
 Actually `rsslay` makes usage of a method named `AttemptReplayEvents` which is made to send the events to other relays of confidence to attempt to make the events and the profile more reachable (they are just mirror relays)...
 
 Currently used relays:
+- wss://nostr.data.haus
 - wss://relay.nostrgraph.net
 - wss://nostr.mom
 - wss://relay.nostr.band
