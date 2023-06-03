@@ -65,6 +65,18 @@ If you want to run your own instance, you are covered!
 Several options (including "one-click" ones) are available.
 Checkout [the wiki](https://github.com/piraces/rsslay/wiki/Deploy-your-own-instance).
 
+## Caching
+
+Since version v0.5.1, rsslay uses cache by default (in-memory with [BigCache](https://github.com/allegro/bigcache) by default or with [Redis](https://redis.io/) if configured) enabled by default to improve performance.
+In the case of the main instance `rsslay.nostr.moe`, Redis is used in HA mode to improve performance for multiple requests for the same feed.
+
+**Nevertheless, there is a caveat using this approach that is that cached feeds do not refresh for 30 minutes (but I personally think it is worth for the performance gain).**
+
+## Metrics
+
+Since version v0.5.1, rsslay uses [Prometheus](https://prometheus.io/) instrumenting with metrics exposed on `/metrics` path.
+So with this you can mount your own [Graphana](https://grafana.com/) dashboards and look into rsslay insights!
+
 # Contributing
 
 Feel free to [open an issue](https://github.com/piraces/rsslay/issues/new), provide feedback in [discussions](https://github.com/piraces/rsslay/discussions), or fork the repo and open a PR with your contribution!
