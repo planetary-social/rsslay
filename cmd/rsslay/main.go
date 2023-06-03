@@ -59,6 +59,9 @@ type Relay struct {
 	Contact                         string   `envconfig:"INFO_CONTACT" default:"~"`
 	MaxContentLength                int      `envconfig:"MAX_CONTENT_LENGTH" default:"250"`
 	DeleteFailingFeeds              bool     `envconfig:"DELETE_FAILING_FEEDS" default:"false"`
+	RedisAddress                    string   `envconfig:"REDIS_ADDRESS" default:""`
+	RedisUsername                   string   `envconfig:"REDIS_USERNAME" default:""`
+	RedisPassword                   string   `envconfig:"REDIS_PASSWORD" default:""`
 
 	updates            chan nostr.Event
 	lastEmitted        sync.Map
@@ -96,6 +99,17 @@ func ConfigureLogging() {
 		Writer:   os.Stderr,
 	}
 	log.SetOutput(filter)
+}
+
+func ConfigureCache() {
+	if relayInstance.RedisAddress != "" {
+		custom_cache.RedisConfiguration = &custom_cache.RedisConfig{
+			Address:  relayInstance.RedisAddress,
+			Username: relayInstance.RedisUsername,
+			Password: relayInstance.RedisPassword,
+		}
+	}
+	custom_cache.InitializeCache()
 }
 
 func (r *Relay) Name() string {
@@ -314,7 +328,7 @@ func (r *Relay) GetNIP11InformationDocument() nip11.RelayInformationDocument {
 func main() {
 	CreateHealthCheck()
 	ConfigureLogging()
-	custom_cache.InitializeCache()
+	ConfigureCache()
 	defer func(db *sql.DB) {
 		err := db.Close()
 		if err != nil {

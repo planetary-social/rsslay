@@ -111,6 +111,7 @@ func tryAuth(relay *nostr.Relay, challenge string, url string, waitTime int64, e
 	err := event.Sign(ev.PrivateKey)
 	if err != nil {
 		log.Printf("[ERROR] Failed to sign event while trying to authenticate. PubKey: %s\n", ev.Event.PubKey)
+		metrics.AppErrors.With(prometheus.Labels{"type": "REPLAY_AUTH"}).Inc()
 		return false
 	}
 
@@ -123,6 +124,7 @@ func tryAuth(relay *nostr.Relay, challenge string, url string, waitTime int64, e
 	authStatus, err := relay.Auth(ctx, event)
 	if err != nil {
 		log.Printf("[ERROR] Failed while trying to authenticate after sending AUTH event. Error: %v\n", err)
+		metrics.AppErrors.With(prometheus.Labels{"type": "REPLAY_AUTH"}).Inc()
 		return false
 	}
 
@@ -137,6 +139,7 @@ func connectToRelay(url string) *nostr.Relay {
 	relay, e := nostr.RelayConnect(context.Background(), url)
 	if e != nil {
 		log.Printf("[ERROR] Error while trying to connect with relay '%s': %v", url, e)
+		metrics.AppErrors.With(prometheus.Labels{"type": "REPLAY_CONNECT"}).Inc()
 		return nil
 	}
 

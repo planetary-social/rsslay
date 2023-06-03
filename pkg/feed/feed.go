@@ -1,7 +1,6 @@
 package feed
 
 import (
-	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"database/sql"
@@ -18,6 +17,7 @@ import (
 	"github.com/piraces/rsslay/pkg/custom_cache"
 	"github.com/piraces/rsslay/pkg/helpers"
 	"github.com/piraces/rsslay/pkg/metrics"
+	"github.com/prometheus/client_golang/prometheus"
 	"html"
 	"log"
 	"net/http"
@@ -88,18 +88,15 @@ func GetFeedURL(url string) string {
 }
 
 func ParseFeed(url string) (*gofeed.Feed, error) {
-	if !custom_cache.Initialized {
-		custom_cache.InitializeCache()
-	}
-
-	feedBytes, err := custom_cache.MainCache.Get(context.Background(), url)
+	feedBytes, err := custom_cache.Get(url)
 	if err == nil {
 		metrics.CacheHits.Inc()
-		feed, err := fp.ParseString(string(feedBytes))
+		feed, err := fp.ParseString(feedBytes)
 		if err != nil {
 			return feed, nil
 		} else {
 			log.Printf("[ERROR] failure to parse cache stored feed: %v", err)
+			metrics.AppErrors.With(prometheus.Labels{"type": "CACHE_PARSE"}).Inc()
 		}
 	} else {
 		log.Printf("[DEBUG] entry not found in cache: %v", err)
@@ -116,9 +113,10 @@ func ParseFeed(url string) (*gofeed.Feed, error) {
 	for i := range feed.Items {
 		feed.Items[i].Content = ""
 	}
-	err = custom_cache.MainCache.Set(context.Background(), url, []byte(feed.String()))
+	err = custom_cache.Set(url, feed.String())
 	if err != nil {
 		log.Printf("[ERROR] failure to store into cache feed: %v", err)
+		metrics.AppErrors.With(prometheus.Labels{"type": "CACHE_SET"}).Inc()
 	}
 
 	return feed, nil
@@ -280,6 +278,7 @@ func PrivateKeyFromFeed(url string, secret string) string {
 func DeleteInvalidFeed(url string, db *sql.DB) {
 	if _, err := db.Exec(`DELETE FROM feeds WHERE url=?`, url); err != nil {
 		log.Printf("[ERROR] failure to delete invalid feed: %v", err)
+		metrics.AppErrors.With(prometheus.Labels{"type": "SQL_WRITE"}).Inc()
 	} else {
 		log.Printf("[DEBUG] deleted invalid feed with url %q", url)
 	}

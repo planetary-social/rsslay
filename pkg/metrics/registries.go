@@ -50,6 +50,10 @@ var (
 		Name: "rsslay_processed_cache_miss_ops_total",
 		Help: "The total number of cache misses",
 	})
+	AppErrors = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "rsslay_errors_total",
+		Help: "Number of errors for the app.",
+	}, []string{"type"})
 	ReplayRoutineQueueLength = promauto.NewGauge(prometheus.GaugeOpts{
 		Name: "rsslay_replay_routines_queue_length",
 		Help: "Current number of subroutines to replay events to other relays",

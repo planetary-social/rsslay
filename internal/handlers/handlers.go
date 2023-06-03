@@ -11,6 +11,7 @@ import (
 	"github.com/piraces/rsslay/pkg/helpers"
 	"github.com/piraces/rsslay/pkg/metrics"
 	"github.com/piraces/rsslay/web/templates"
+	"github.com/prometheus/client_golang/prometheus"
 	"html/template"
 	"log"
 	"net/http"
@@ -64,6 +65,7 @@ func HandleWebpage(w http.ResponseWriter, r *http.Request, db *sql.DB, mainDomai
 		var entry Entry
 		if err := rows.Scan(&entry.PubKey, &entry.Url); err != nil {
 			log.Printf("[ERROR] failed to scan row iterating feeds: %v", err)
+			metrics.AppErrors.With(prometheus.Labels{"type": "SQL_SCAN"}).Inc()
 			continue
 		}
 
@@ -116,6 +118,7 @@ func HandleSearch(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		var entry Entry
 		if err := rows.Scan(&entry.PubKey, &entry.Url); err != nil {
 			log.Printf("[ERROR] failed to scan row iterating feeds searching: %v", err)
+			metrics.AppErrors.With(prometheus.Labels{"type": "SQL_SCAN"}).Inc()
 			continue
 		}
 
@@ -292,10 +295,12 @@ func insertFeed(err error, feedUrl string, publicKey string, sk string, nitter b
 		log.Printf("[DEBUG] not found feed at url %q as publicKey %s", feedUrl, publicKey)
 		if _, err := db.Exec(`INSERT INTO feeds (publickey, privatekey, url, nitter) VALUES (?, ?, ?, ?)`, publicKey, sk, feedUrl, nitter); err != nil {
 			log.Printf("[ERROR] failure: %v", err)
+			metrics.AppErrors.With(prometheus.Labels{"type": "SQL_WRITE"}).Inc()
 		} else {
 			log.Printf("[DEBUG] saved feed at url %q as publicKey %s", feedUrl, publicKey)
 		}
 	} else if err != nil {
+		metrics.AppErrors.With(prometheus.Labels{"type": "SQL_SCAN"}).Inc()
 		log.Fatalf("[ERROR] failed when trying to retrieve row with pubkey '%s': %v", publicKey, err)
 	} else {
 		log.Printf("[DEBUG] found feed at url %q as publicKey %s", feedUrl, publicKey)

@@ -5,6 +5,8 @@ import (
 	"github.com/mmcdole/gofeed"
 	"github.com/piraces/rsslay/pkg/feed"
 	"github.com/piraces/rsslay/pkg/helpers"
+	"github.com/piraces/rsslay/pkg/metrics"
+	"github.com/prometheus/client_golang/prometheus"
 	"log"
 	"net/url"
 	"strings"
@@ -20,6 +22,7 @@ func GetParsedFeedForPubKey(pubKey string, db *sql.DB, deleteFailingFeeds bool, 
 		return nil, entity
 	} else if err != nil {
 		log.Printf("[ERROR] failed when trying to retrieve row with pubkey '%s': %v", pubKey, err)
+		metrics.AppErrors.With(prometheus.Labels{"type": "SQL_SCAN"}).Inc()
 		return nil, entity
 	}
 
@@ -65,6 +68,7 @@ func updateDatabaseEntry(entity *feed.Entity, db *sql.DB) {
 	log.Printf("[DEBUG] attempting to set feed at url %q with publicKey %s as nitter instance", entity.URL, entity.PublicKey)
 	if _, err := db.Exec(`UPDATE feeds SET nitter = ? WHERE publickey = ?`, 1, entity.PublicKey); err != nil {
 		log.Printf("[ERROR] failure while updating record on db to set as nitter feed: %v", err)
+		metrics.AppErrors.With(prometheus.Labels{"type": "SQL_WRITE"}).Inc()
 	} else {
 		log.Printf("[DEBUG] set feed at url %q with publicKey %s as nitter instance", entity.URL, entity.PublicKey)
 	}
