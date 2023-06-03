@@ -28,9 +28,13 @@ var RedisConfiguration *RedisConfig
 func InitializeCache() {
 	if RedisConfiguration != nil {
 		initializeRedisCache()
+		log.Printf("[INFO] Using Redis cache ADDRESS %s:\n\n", RedisConfiguration.Address)
+		Initialized = true
 		return
 	}
+	log.Printf("[INFO] Using default memory cache\n\n")
 	initializeBigCache()
+	Initialized = true
 }
 
 func Get(key string) (string, error) {
@@ -59,7 +63,6 @@ func initializeBigCache() {
 	bigcacheStore := bigcache_store.NewBigcache(bigcacheClient)
 
 	MainCache = cache.New[[]byte](bigcacheStore)
-	Initialized = true
 }
 
 func initializeRedisCache() {
