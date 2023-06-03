@@ -88,15 +88,15 @@ func GetFeedURL(url string) string {
 }
 
 func ParseFeed(url string) (*gofeed.Feed, error) {
-	feedBytes, err := custom_cache.Get(url)
+	feedString, err := custom_cache.Get(url)
 	if err == nil {
 		metrics.CacheHits.Inc()
-		feed, err := fp.ParseString(feedBytes)
+		feed, err := fp.ParseString(feedString)
 		if err != nil {
-			return feed, nil
-		} else {
 			log.Printf("[ERROR] failure to parse cache stored feed: %v", err)
 			metrics.AppErrors.With(prometheus.Labels{"type": "CACHE_PARSE"}).Inc()
+		} else {
+			return feed, nil
 		}
 	} else {
 		log.Printf("[DEBUG] entry not found in cache: %v", err)

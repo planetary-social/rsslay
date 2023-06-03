@@ -14,26 +14,20 @@ import (
 	"time"
 )
 
-type RedisConfig struct {
-	Address  string
-	Username string
-	Password string
-}
-
 var MainCache *cache.Cache[[]byte]
 var MainCacheRedis *cache.Cache[string]
 var Initialized = false
-var RedisConfiguration *RedisConfig
+var RedisConnectionString *string
 
 func InitializeCache() {
-	if RedisConfiguration != nil {
+	if RedisConnectionString != nil {
 		initializeRedisCache()
-		log.Printf("[INFO] Using Redis cache ADDRESS %s:\n\n", RedisConfiguration.Address)
+		log.Printf("[INFO] Using Redis cache\n\n")
 		Initialized = true
 		return
 	}
-	log.Printf("[INFO] Using default memory cache\n\n")
 	initializeBigCache()
+	log.Printf("[INFO] Using default memory cache\n\n")
 	Initialized = true
 }
 
@@ -66,11 +60,8 @@ func initializeBigCache() {
 }
 
 func initializeRedisCache() {
-	redisStore := redis_store.NewRedis(redis.NewClient(&redis.Options{
-		Addr:     RedisConfiguration.Address,
-		Username: RedisConfiguration.Username,
-		Password: RedisConfiguration.Password,
-	}))
+	opt, _ := redis.ParseURL(*RedisConnectionString)
+	redisStore := redis_store.NewRedis(redis.NewClient(opt))
 
 	MainCacheRedis = cache.New[string](redisStore)
 }
