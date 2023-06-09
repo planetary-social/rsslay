@@ -29,7 +29,7 @@ kill_timeout = 5
   PORT = "8080"
   RELAYS_TO_PUBLISH_TO = "wss://nostr.data.haus,wss://nostr.anchel.nl,wss://relay.nostrgraph.net,wss://nostr.mom,wss://relay.nostr.band,wss://nostr.mutinywallet.com"
   REPLAY_TO_RELAYS = "true"
-  VERSION = "0.5.1"
+  VERSION = "0.5.2"
 
 [[mounts]]
   source = "rsslay_data_machines"
