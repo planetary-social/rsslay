@@ -34,6 +34,7 @@ Actually `rsslay` makes usage of a method named `AttemptReplayEvents` which is m
 
 Currently used relays:
 - wss://nostr.data.haus
+- wss://nostr.anchel.nl
 - wss://relay.nostrgraph.net
 - wss://nostr.mom
 - wss://relay.nostr.band

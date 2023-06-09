@@ -23,8 +23,9 @@ type ReplayParameters struct {
 }
 
 type EventWithPrivateKey struct {
-	Event      nostr.Event
-	PrivateKey string
+	Event         *nostr.Event
+	PrivateKey    string
+	MetadataEvent *nostr.Event
 }
 
 func ReplayEventsToRelays(parameters *ReplayParameters) {
@@ -62,19 +63,13 @@ func ReplayEventsToRelays(parameters *ReplayParameters) {
 					log.Printf("[DEBUG] ping to relay failed, reconnecting to %s because of error: %v\n", url, err)
 					relay = connectToRelay(url)
 				}
-				publishStatus, err := relay.Publish(context.Background(), ev.Event)
-				switch publishStatus {
-				case nostr.PublishStatusSent:
-					metrics.ReplayEvents.With(prometheus.Labels{"relay": url}).Inc()
-					break
-				default:
-					metrics.ReplayErrorEvents.With(prometheus.Labels{"relay": url}).Inc()
-					break
+
+				if ev.MetadataEvent != nil {
+					publishMetadataStatus := publishEvent(err, relay, *ev.MetadataEvent, url)
+					statusSummary = statusSummary | int(publishMetadataStatus)
 				}
-				_ = relay.Close()
-				if err != nil {
-					log.Printf("[INFO] Failed to replay event to %s with error: %v", url, err)
-				}
+
+				publishStatus := publishEvent(err, relay, *ev.Event, url)
 				statusSummary = statusSummary | int(publishStatus)
 			}
 			if statusSummary < 0 {
@@ -90,6 +85,23 @@ func ReplayEventsToRelays(parameters *ReplayParameters) {
 		metrics.ReplayRoutineQueueLength.Set(float64(*parameters.Queue))
 		parameters.Mutex.Unlock()
 	}()
+}
+
+func publishEvent(err error, relay *nostr.Relay, ev nostr.Event, url string) nostr.Status {
+	publishStatus, err := relay.Publish(context.Background(), ev)
+	switch publishStatus {
+	case nostr.PublishStatusSent:
+		metrics.ReplayEvents.With(prometheus.Labels{"relay": url}).Inc()
+		break
+	default:
+		metrics.ReplayErrorEvents.With(prometheus.Labels{"relay": url}).Inc()
+		break
+	}
+	_ = relay.Close()
+	if err != nil {
+		log.Printf("[INFO] Failed to replay event to %s with error: %v", url, err)
+	}
+	return publishStatus
 }
 
 func needsAuth(relay *nostr.Relay, waitTime int64) (*string, bool) {

@@ -178,7 +178,7 @@ func (r *Relay) UpdateListeningFilters() {
 							_ = evt.Sign(entity.PrivateKey)
 							r.updates <- evt
 							r.lastEmitted.Store(entity.URL, last.(uint32))
-							parsedEvents = append(parsedEvents, replayer.EventWithPrivateKey{Event: evt, PrivateKey: entity.PrivateKey})
+							parsedEvents = append(parsedEvents, replayer.EventWithPrivateKey{Event: &evt, PrivateKey: entity.PrivateKey})
 						}
 					}
 				}
@@ -257,7 +257,9 @@ func (b store) QueryEvents(filter *nostr.Filter) ([]nostr.Event, error) {
 
 			_ = evt.Sign(entity.PrivateKey)
 			parsedEvents = append(parsedEvents, evt)
-			eventsToReplay = append(eventsToReplay, replayer.EventWithPrivateKey{Event: evt, PrivateKey: entity.PrivateKey})
+			if relayInstance.ReplayToRelays {
+				eventsToReplay = append(eventsToReplay, replayer.EventWithPrivateKey{Event: &evt, PrivateKey: entity.PrivateKey})
+			}
 		}
 
 		if filter.Kinds == nil || slices.Contains(filter.Kinds, nostr.KindTextNote) {
@@ -285,7 +287,11 @@ func (b store) QueryEvents(filter *nostr.Filter) ([]nostr.Event, error) {
 				}
 
 				parsedEvents = append(parsedEvents, evt)
-				eventsToReplay = append(eventsToReplay, replayer.EventWithPrivateKey{Event: evt, PrivateKey: entity.PrivateKey})
+				if relayInstance.ReplayToRelays {
+					metadataEvent := feed.EntryFeedToSetMetadata(pubkey, parsedFeed, entity.URL, relayInstance.EnableAutoNIP05Registration, relayInstance.DefaultProfilePictureUrl, relayInstance.MainDomainName)
+					_ = metadataEvent.Sign(entity.PrivateKey)
+					eventsToReplay = append(eventsToReplay, replayer.EventWithPrivateKey{Event: &evt, PrivateKey: entity.PrivateKey, MetadataEvent: &metadataEvent})
+				}
 			}
 
 			relayInstance.lastEmitted.Store(entity.URL, last)
