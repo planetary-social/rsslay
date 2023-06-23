@@ -42,7 +42,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: cooldracula/rsslay
           tags: |
             type=ref,event=branch,suffix=_{{sha}}
             type=raw,value=latest,enable={{is_default_branch}}
@@ -52,6 +52,6 @@ jobs:
         with:
           context: .
           push: true
-          platforms: linux/amd64,linux/arm64/v8
+          platforms: linux/amd64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
