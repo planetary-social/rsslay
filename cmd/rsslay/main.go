@@ -288,9 +288,7 @@ func (b store) QueryEvents(filter *nostr.Filter) ([]nostr.Event, error) {
 
 				parsedEvents = append(parsedEvents, evt)
 				if relayInstance.ReplayToRelays {
-					metadataEvent := feed.EntryFeedToSetMetadata(pubkey, parsedFeed, entity.URL, relayInstance.EnableAutoNIP05Registration, relayInstance.DefaultProfilePictureUrl, relayInstance.MainDomainName)
-					_ = metadataEvent.Sign(entity.PrivateKey)
-					eventsToReplay = append(eventsToReplay, replayer.EventWithPrivateKey{Event: &evt, PrivateKey: entity.PrivateKey, MetadataEvent: &metadataEvent})
+					eventsToReplay = append(eventsToReplay, replayer.EventWithPrivateKey{Event: &evt, PrivateKey: entity.PrivateKey})
 				}
 			}
 
