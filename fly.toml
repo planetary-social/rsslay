@@ -27,8 +27,8 @@ kill_timeout = 5
   NITTER_INSTANCES = "birdsite.xanny.family,notabird.site,nitter.moomoo.me,nitter.fly.dev"
   OWNER_PUBLIC_KEY = "4ac24d2ee822a34a9881eff526bf71f39704419837e4c14b34642d82e111ed39"
   PORT = "8080"
-  RELAYS_TO_PUBLISH_TO = "wss://nostr.data.haus,wss://relay.nostrgraph.net,wss://nostr.mom,wss://relay.nostr.band,wss://nostr.mutinywallet.com"
-  REPLAY_TO_RELAYS = "true"
+  RELAYS_TO_PUBLISH_TO = ""
+  REPLAY_TO_RELAYS = "false"
   VERSION = "0.5.3"
 
 [[mounts]]

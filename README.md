@@ -30,19 +30,11 @@ Checkout the [wiki entry](https://github.com/piraces/rsslay/wiki/API) for furthe
 
 ## Mirroring events ("replaying")
 
+_**Note:** since v0.5.3 its recommended to set `REPLAY_TO_RELAYS` to false. There is no need to perform replays to other relays, the main rsslay should be able to handle the events._
+
 Actually `rsslay` makes usage of a method named `AttemptReplayEvents` which is made to send the events to other relays of confidence to attempt to make the events and the profile more reachable (they are just mirror relays)...
 
-Currently used relays:
-- wss://nostr.data.haus
-- wss://nostr.anchel.nl
-- wss://relay.nostrgraph.net
-- wss://nostr.mom
-- wss://relay.nostr.band
-- wss://nostr.mutinywallet.com
-
-This is needed nowadays, with further improvements in relays implementations or clients it may not be needed in the future.
-
-Maybe in the future with other implementations we can avoid that, but nowadays its needed.
+Currently used relays: none.
 
 ## Feeds from Twitter via Nitter instances
 
