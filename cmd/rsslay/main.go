@@ -247,7 +247,7 @@ func (b store) QueryEvents(filter *nostr.Filter) ([]nostr.Event, error) {
 			eventsToReplay = append(eventsToReplay, replayer.EventWithPrivateKey{Event: evt, PrivateKey: entity.PrivateKey})
 		}
 
-		if filter.Kinds == nil || slices.Contains(filter.Kinds, nostr.KindTextNote) {
+		if filter.Kinds == nil || slices.Contains(filter.Kinds, nostr.KindTextNote) || slices.Contains(filter.Kinds, feed.KindLongFormTextContent) {
 			var last uint32 = 0
 			for _, item := range parsedFeed.Items {
 				defaultCreatedAt := time.Unix(time.Now().Unix(), 0)
@@ -266,6 +266,10 @@ func (b store) QueryEvents(filter *nostr.Filter) ([]nostr.Event, error) {
 				}
 
 				_ = evt.Sign(entity.PrivateKey)
+
+				if !filter.Matches(&evt) {
+					continue
+				}
 
 				if evt.CreatedAt > nostr.Timestamp(int64(last)) {
 					last = uint32(evt.CreatedAt)
