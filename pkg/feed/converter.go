@@ -124,7 +124,7 @@ func buildContent(item *gofeed.Item, feed *gofeed.Feed, originalUrl string, maxC
 	if maxContentLength == 0 && len(itemContent) != 0 {
 		content += "\n\n" + itemContent
 	} else {
-		if !strings.EqualFold(item.Title, itemDescription) && !strings.Contains(feed.Link, "stacker.news") {
+		if !strings.EqualFold(item.Title, itemDescription) && !strings.Contains(feed.Link, "stacker.news") && !strings.Contains(feed.Link, "reddit.com") {
 			content += "\n\n" + itemDescription
 		}
 	}
@@ -152,6 +152,15 @@ func buildContent(item *gofeed.Item, feed *gofeed.Feed, originalUrl string, maxC
 			}
 		}
 		content += itemDescription
+	}
+
+	if strings.Contains(feed.Link, "reddit.com") {
+		var subredditParsePart1 = strings.Split(feed.Link, "/r/")
+		var subredditParsePart2 = strings.Split(subredditParsePart1[1], "/")
+		var theHashtag = fmt.Sprintf(" #%s", subredditParsePart2[0])
+
+		content = content + "\n\n" + theHashtag
+
 	}
 
 	content = html.UnescapeString(content)
