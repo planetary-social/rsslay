@@ -89,6 +89,7 @@ func TestEntryFeedToSetMetadata(t *testing.T) {
 		originalUrl              string
 		enableAutoRegistration   bool
 		defaultProfilePictureUrl string
+		defaultMainDomain        string
 	}{
 		{
 			pubKey:                   samplePubKey,
@@ -96,6 +97,7 @@ func TestEntryFeedToSetMetadata(t *testing.T) {
 			originalUrl:              sampleNitterFeed.FeedLink,
 			enableAutoRegistration:   true,
 			defaultProfilePictureUrl: "https://image.example",
+			defaultMainDomain:        "rsslay.nostr.moe",
 		},
 		{
 			pubKey:                   samplePubKey,
@@ -103,10 +105,11 @@ func TestEntryFeedToSetMetadata(t *testing.T) {
 			originalUrl:              sampleDefaultFeed.FeedLink,
 			enableAutoRegistration:   true,
 			defaultProfilePictureUrl: "https://image.example",
+			defaultMainDomain:        "rsslay.nostr.moe",
 		},
 	}
 	for _, tc := range testCases {
-		metadata := EntryFeedToSetMetadata(tc.pubKey, tc.feed, tc.originalUrl, tc.enableAutoRegistration, tc.defaultProfilePictureUrl)
+		metadata := EntryFeedToSetMetadata(tc.pubKey, tc.feed, tc.originalUrl, tc.enableAutoRegistration, tc.defaultProfilePictureUrl, tc.defaultMainDomain)
 		assert.NotEmpty(t, metadata)
 		assert.Equal(t, samplePubKey, metadata.PubKey)
 		assert.Equal(t, 0, metadata.Kind)
