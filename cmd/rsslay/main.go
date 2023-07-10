@@ -7,6 +7,14 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log"
+	"net/http"
+	"os"
+	"path"
+	"sync"
+	"time"
+
+	"github.com/eko/gocache/lib/v4/cache"
 	"github.com/fiatjaf/relayer"
 	_ "github.com/fiatjaf/relayer"
 	"github.com/hashicorp/logutils"
@@ -16,17 +24,14 @@ import (
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/nbd-wtf/go-nostr/nip11"
 	"github.com/piraces/rsslay/internal/handlers"
+	"github.com/piraces/rsslay/pkg/custom_cache"
 	"github.com/piraces/rsslay/pkg/events"
 	"github.com/piraces/rsslay/pkg/feed"
+	"github.com/piraces/rsslay/pkg/metrics"
 	"github.com/piraces/rsslay/pkg/replayer"
 	"github.com/piraces/rsslay/scripts"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"golang.org/x/exp/slices"
-	"log"
-	"net/http"
-	"os"
-	"path"
-	"sync"
-	"time"
 )
 
 // Command line flags.
@@ -55,6 +60,7 @@ type Relay struct {
 	Contact                         string   `envconfig:"INFO_CONTACT" default:"~"`
 	MaxContentLength                int      `envconfig:"MAX_CONTENT_LENGTH" default:"250"`
 	DeleteFailingFeeds              bool     `envconfig:"DELETE_FAILING_FEEDS" default:"false"`
+	RedisConnectionString           string   `envconfig:"REDIS_CONNECTION_STRING" default:""`
 
 	updates            chan nostr.Event
 	lastEmitted        sync.Map
@@ -62,6 +68,8 @@ type Relay struct {
 	healthCheck        *health.Health
 	mutex              sync.Mutex
 	routineQueueLength int
+	converterSelector  *feed.ConverterSelector
+	cache              *cache.Cache[string]
 }
 
 var relayInstance = &Relay{
@@ -93,13 +101,20 @@ func ConfigureLogging() {
 	log.SetOutput(filter)
 }
 
+func ConfigureCache() {
+	if relayInstance.RedisConnectionString != "" {
+		custom_cache.RedisConnectionString = &relayInstance.RedisConnectionString
+	}
+	custom_cache.InitializeCache()
+}
+
 func (r *Relay) Name() string {
 	return r.RelayName
 }
 
 func (r *Relay) OnInitialized(s *relayer.Server) {
 	s.Router().Path("/").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		handlers.HandleWebpage(writer, request, r.db)
+		handlers.HandleWebpage(writer, request, r.db, &r.MainDomainName)
 	})
 	s.Router().Path("/create").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		handlers.HandleCreateFeed(writer, request, r.db, &r.Secret, dsn)
@@ -117,6 +132,7 @@ func (r *Relay) OnInitialized(s *relayer.Server) {
 	s.Router().Path("/.well-known/nostr.json").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		handlers.HandleNip05(writer, request, r.db, &r.OwnerPublicKey, &r.EnableAutoNIP05Registration)
 	})
+	s.Router().Path("/metrics").Handler(promhttp.Handler())
 }
 
 func (r *Relay) Init() error {
@@ -128,9 +144,13 @@ func (r *Relay) Init() error {
 		log.Printf("[INFO] Running VERSION %s:\n - DSN=%s\n - DB_DIR=%s\n\n", r.Version, *dsn, r.DatabaseDirectory)
 	}
 
+	ConfigureCache()
 	r.db = InitDatabase(r)
 
 	go r.UpdateListeningFilters()
+
+	longFormConverter := feed.NewLongFormConverter()
+	r.converterSelector = feed.NewConverterSelector(longFormConverter)
 
 	return nil
 }
@@ -138,6 +158,7 @@ func (r *Relay) Init() error {
 func (r *Relay) UpdateListeningFilters() {
 	for {
 		time.Sleep(20 * time.Minute)
+		metrics.ListeningFiltersOps.Inc()
 
 		filters := relayer.GetListeningFilters()
 		log.Printf("[DEBUG] Checking for updates; %d filters active", len(filters))
@@ -151,9 +172,11 @@ func (r *Relay) UpdateListeningFilters() {
 						continue
 					}
 
+					converter := r.converterSelector.Select(parsedFeed)
+
 					for _, item := range parsedFeed.Items {
 						defaultCreatedAt := time.Unix(time.Now().Unix(), 0)
-						evt := feed.ItemToTextNote(pubkey, item, parsedFeed, defaultCreatedAt, entity.URL, relayInstance.MaxContentLength)
+						evt := converter.Convert(pubkey, item, parsedFeed, defaultCreatedAt, entity.URL)
 						last, ok := r.lastEmitted.Load(entity.URL)
 						if last == nil {
 							last = uint32(time.Now().Unix())
@@ -162,7 +185,7 @@ func (r *Relay) UpdateListeningFilters() {
 							_ = evt.Sign(entity.PrivateKey)
 							r.updates <- evt
 							r.lastEmitted.Store(entity.URL, last.(uint32))
-							parsedEvents = append(parsedEvents, replayer.EventWithPrivateKey{Event: evt, PrivateKey: entity.PrivateKey})
+							parsedEvents = append(parsedEvents, replayer.EventWithPrivateKey{Event: &evt, PrivateKey: entity.PrivateKey})
 						}
 					}
 				}
@@ -175,6 +198,7 @@ func (r *Relay) UpdateListeningFilters() {
 func (r *Relay) AttemptReplayEvents(events []replayer.EventWithPrivateKey) {
 	if relayInstance.ReplayToRelays && relayInstance.routineQueueLength < relayInstance.MaxSubroutines && len(events) > 0 {
 		r.routineQueueLength++
+		metrics.ReplayRoutineQueueLength.Set(float64(r.routineQueueLength))
 		replayer.ReplayEventsToRelays(&replayer.ReplayParameters{
 			MaxEventsToReplay:        relayInstance.MaxEventsToReplay,
 			RelaysToPublish:          relayInstance.RelaysToPublish,
@@ -188,6 +212,7 @@ func (r *Relay) AttemptReplayEvents(events []replayer.EventWithPrivateKey) {
 }
 
 func (r *Relay) AcceptEvent(_ *nostr.Event) bool {
+	metrics.InvalidEventsRequests.Inc()
 	return false
 }
 
@@ -201,16 +226,20 @@ type store struct {
 
 func (b store) Init() error { return nil }
 func (b store) SaveEvent(_ *nostr.Event) error {
+	metrics.InvalidEventsRequests.Inc()
 	return errors.New("blocked: we don't accept any events")
 }
 
 func (b store) DeleteEvent(_, _ string) error {
+	metrics.InvalidEventsRequests.Inc()
 	return errors.New("blocked: we can't delete any events")
 }
 
 func (b store) QueryEvents(filter *nostr.Filter) ([]nostr.Event, error) {
 	var parsedEvents []nostr.Event
 	var eventsToReplay []replayer.EventWithPrivateKey
+
+	metrics.QueryEventsRequests.Inc()
 
 	if filter.IDs != nil || len(filter.Tags) > 0 {
 		return parsedEvents, nil
@@ -223,8 +252,10 @@ func (b store) QueryEvents(filter *nostr.Filter) ([]nostr.Event, error) {
 			continue
 		}
 
+		converter := relayInstance.converterSelector.Select(parsedFeed)
+
 		if filter.Kinds == nil || slices.Contains(filter.Kinds, nostr.KindSetMetadata) {
-			evt := feed.EntryFeedToSetMetadata(pubkey, parsedFeed, entity.URL, relayInstance.EnableAutoNIP05Registration, relayInstance.DefaultProfilePictureUrl)
+			evt := feed.EntryFeedToSetMetadata(pubkey, parsedFeed, entity.URL, relayInstance.EnableAutoNIP05Registration, relayInstance.DefaultProfilePictureUrl, relayInstance.MainDomainName)
 
 			if filter.Since != nil && evt.CreatedAt < *filter.Since {
 				continue
@@ -235,14 +266,16 @@ func (b store) QueryEvents(filter *nostr.Filter) ([]nostr.Event, error) {
 
 			_ = evt.Sign(entity.PrivateKey)
 			parsedEvents = append(parsedEvents, evt)
-			eventsToReplay = append(eventsToReplay, replayer.EventWithPrivateKey{Event: evt, PrivateKey: entity.PrivateKey})
+			if relayInstance.ReplayToRelays {
+				eventsToReplay = append(eventsToReplay, replayer.EventWithPrivateKey{Event: &evt, PrivateKey: entity.PrivateKey})
+			}
 		}
 
-		if filter.Kinds == nil || slices.Contains(filter.Kinds, nostr.KindTextNote) {
+		if filter.Kinds == nil || slices.Contains(filter.Kinds, nostr.KindTextNote) || slices.Contains(filter.Kinds, feed.KindLongFormTextContent) {
 			var last uint32 = 0
 			for _, item := range parsedFeed.Items {
 				defaultCreatedAt := time.Unix(time.Now().Unix(), 0)
-				evt := feed.ItemToTextNote(pubkey, item, parsedFeed, defaultCreatedAt, entity.URL, relayInstance.MaxContentLength)
+				evt := converter.Convert(pubkey, item, parsedFeed, defaultCreatedAt, entity.URL)
 
 				// Feed need to have a date for each entry...
 				if evt.CreatedAt == nostr.Timestamp(defaultCreatedAt.Unix()) {
@@ -258,12 +291,18 @@ func (b store) QueryEvents(filter *nostr.Filter) ([]nostr.Event, error) {
 
 				_ = evt.Sign(entity.PrivateKey)
 
+				if !filter.Matches(&evt) {
+					continue
+				}
+
 				if evt.CreatedAt > nostr.Timestamp(int64(last)) {
 					last = uint32(evt.CreatedAt)
 				}
 
 				parsedEvents = append(parsedEvents, evt)
-				eventsToReplay = append(eventsToReplay, replayer.EventWithPrivateKey{Event: evt, PrivateKey: entity.PrivateKey})
+				if relayInstance.ReplayToRelays {
+					eventsToReplay = append(eventsToReplay, replayer.EventWithPrivateKey{Event: &evt, PrivateKey: entity.PrivateKey})
+				}
 			}
 
 			relayInstance.lastEmitted.Store(entity.URL, last)
@@ -280,6 +319,7 @@ func (r *Relay) InjectEvents() chan nostr.Event {
 }
 
 func (r *Relay) GetNIP11InformationDocument() nip11.RelayInformationDocument {
+	metrics.RelayInfoRequests.Inc()
 	infoDocument := nip11.RelayInformationDocument{
 		Name:          relayInstance.Name(),
 		Description:   "Relay that creates virtual nostr profiles for each RSS feed submitted, powered by the relayer framework",

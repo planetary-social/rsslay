@@ -6,6 +6,10 @@ kill_timeout = 5
 [experimental]
   enable_consul = true
 
+[metrics]
+  port = 8080
+  path = "/metrics"
+
 [env]
   DB_DIR = "/var/lib/litefs/db"
   DEFAULT_PROFILE_PICTURE_URL = "https://i.imgur.com/MaceU96.png"
@@ -23,9 +27,9 @@ kill_timeout = 5
   NITTER_INSTANCES = "birdsite.xanny.family,notabird.site,nitter.moomoo.me,nitter.fly.dev"
   OWNER_PUBLIC_KEY = "4ac24d2ee822a34a9881eff526bf71f39704419837e4c14b34642d82e111ed39"
   PORT = "8080"
-  RELAYS_TO_PUBLISH_TO = "wss://relay.nostrgraph.net,wss://e.nos.lol,wss://nostr.mom,wss://relay.nostr.band,wss://nos.lol,wss://nostr.mutinywallet.com"
-  REPLAY_TO_RELAYS = "true"
-  VERSION = "0.4.7"
+  RELAYS_TO_PUBLISH_TO = ""
+  REPLAY_TO_RELAYS = "false"
+  VERSION = "0.5.3"
 
 [[mounts]]
   source = "rsslay_data_machines"

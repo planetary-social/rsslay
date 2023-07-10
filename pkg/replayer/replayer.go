@@ -2,12 +2,14 @@ package replayer
 
 import (
 	"context"
-	"github.com/nbd-wtf/go-nostr"
-	"github.com/nbd-wtf/go-nostr/nip42"
 	"log"
 	"sort"
 	"sync"
 	"time"
+
+	"github.com/nbd-wtf/go-nostr"
+	"github.com/piraces/rsslay/pkg/metrics"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 type ReplayParameters struct {
@@ -21,7 +23,7 @@ type ReplayParameters struct {
 }
 
 type EventWithPrivateKey struct {
-	Event      nostr.Event
+	Event      *nostr.Event
 	PrivateKey string
 }
 
@@ -42,23 +44,15 @@ func ReplayEventsToRelays(parameters *ReplayParameters) {
 		parameters.Mutex.Lock()
 		// publish the event to predefined relays
 		for _, url := range parameters.RelaysToPublish {
-			relay, e := nostr.RelayConnect(context.Background(), url)
-			if e != nil {
-				log.Printf("[ERROR] Error while trying to connect with relay '%s': %v", url, e)
-				continue
-			}
-
-			challenge, shouldPerformAuthRequest := needsAuth(relay, parameters.WaitTimeForRelayResponse)
-
 			statusSummary := 0
 			for _, ev := range parameters.Events {
-				if shouldPerformAuthRequest && !tryAuth(relay, *challenge, url, parameters.WaitTimeForRelayResponse, &ev) {
+				relay := connectToRelay(url, ev.PrivateKey)
+				if relay == nil {
 					continue
 				}
-				publishStatus, err := relay.Publish(context.Background(), ev.Event)
-				if err != nil {
-					log.Printf("[INFO] Failed to replay event to %s with error: %v", url, err)
-				}
+				_ = relay.Close()
+
+				publishStatus := publishEvent(relay, *ev.Event, url)
 				statusSummary = statusSummary | int(publishStatus)
 			}
 			if statusSummary < 0 {
@@ -66,52 +60,46 @@ func ReplayEventsToRelays(parameters *ReplayParameters) {
 			} else {
 				log.Printf("[DEBUG] Replayed %d events to %s with status summary %d\n", len(parameters.Events), url, statusSummary)
 			}
-
-			_ = relay.Close()
 		}
 		time.Sleep(time.Duration(parameters.WaitTime) * time.Millisecond)
 		*parameters.Queue--
+		metrics.ReplayRoutineQueueLength.Set(float64(*parameters.Queue))
 		parameters.Mutex.Unlock()
 	}()
 }
 
-func needsAuth(relay *nostr.Relay, waitTime int64) (*string, bool) {
-	afterCh := time.After(time.Duration(waitTime) * time.Millisecond)
-	for {
-		select {
-		case d := <-relay.Challenges:
-			log.Println("[DEBUG] Got challenge:", d)
-			return &d, true
-		case <-afterCh:
-			log.Println("[DEBUG] No challenge received... Skipping auth")
-			return nil, false
-		}
+func publishEvent(relay *nostr.Relay, ev nostr.Event, url string) nostr.Status {
+	publishStatus, err := relay.Publish(context.Background(), ev)
+	switch publishStatus {
+	case nostr.PublishStatusSent:
+		metrics.ReplayEvents.With(prometheus.Labels{"relay": url}).Inc()
+		break
+	default:
+		metrics.ReplayErrorEvents.With(prometheus.Labels{"relay": url}).Inc()
+		break
 	}
+	_ = relay.Close()
+	if err != nil {
+		log.Printf("[INFO] Failed to replay event to %s with error: %v", url, err)
+	}
+	return publishStatus
 }
 
-func tryAuth(relay *nostr.Relay, challenge string, url string, waitTime int64, ev *EventWithPrivateKey) bool {
-	event := nip42.CreateUnsignedAuthEvent(challenge, ev.Event.PubKey, url)
-	err := event.Sign(ev.PrivateKey)
-	if err != nil {
-		log.Printf("[ERROR] Failed to sign event while trying to authenticate. PubKey: %s\n", ev.Event.PubKey)
-		return false
-	}
-
-	// Set-up context with timeout.
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(waitTime)*time.Millisecond)
-	defer cancel()
-
-	// Send the event by calling relay.Auth.
-	// Returned status is either success, fail, or sent (if no reply given in the 3-second timeout).
-	authStatus, err := relay.Auth(ctx, event)
-	if err != nil {
-		log.Printf("[ERROR] Failed while trying to authenticate after sending AUTH event. Error: %v\n", err)
-		return false
-	}
-
-	log.Printf("[DEBUG] authenticated as %s: %s\n", ev.Event.PubKey, authStatus)
-	if authStatus == nostr.PublishStatusSucceeded || authStatus == nostr.PublishStatusSent {
+func connectToRelay(url string, privateKey string) *nostr.Relay {
+	relay, e := nostr.RelayConnect(context.Background(), url, nostr.WithAuthHandler(func(ctx context.Context, authEvent *nostr.Event) (ok bool) {
+		err := authEvent.Sign(privateKey)
+		if err != nil {
+			log.Printf("[ERROR] Error while trying to authenticate with relay '%s': %v", url, err)
+			return false
+		}
 		return true
+	}),
+	)
+	if e != nil {
+		log.Printf("[ERROR] Error while trying to connect with relay '%s': %v", url, e)
+		metrics.AppErrors.With(prometheus.Labels{"type": "REPLAY_CONNECT"}).Inc()
+		return nil
 	}
-	return false
+
+	return relay
 }

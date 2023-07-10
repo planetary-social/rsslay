@@ -9,10 +9,10 @@ Only the latest minor version is currently being supported with security updates
 
 As of now the following versions are covered with security updates:
 
-| Version   | Supported          |
-| -------   | ------------------ |
-| 0.4.x     | :white_check_mark: |
-| < 0.4.0   | :x:                |
+| Version | Supported          |
+|---------| ------------------ |
+| 0.5.x   | :white_check_mark: |
+| < 0.5.0 | :x:                |
 
 ## Reporting a Vulnerability
 
