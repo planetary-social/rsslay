@@ -108,11 +108,6 @@ func ParseFeed(url string) (*gofeed.Feed, error) {
 		return nil, err
 	}
 
-	// cleanup a little so we don't store too much junk
-	for i := range feed.Items {
-		feed.Items[i].Content = ""
-	}
-
 	marshal, err := json.Marshal(feed)
 	if err == nil {
 		err = custom_cache.Set(url, string(marshal))
