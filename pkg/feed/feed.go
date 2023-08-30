@@ -170,7 +170,7 @@ func EntryFeedToSetMetadata(pubkey string, feed *gofeed.Feed, originalUrl string
 		PubKey:    pubkey,
 		CreatedAt: nostr.Timestamp(createdAt.Unix()),
 		Kind:      nostr.KindSetMetadata,
-		Tags:      nostr.Tags{},
+		Tags:      nostr.Tags{[]string{"proxy", feed.FeedLink, "rss"}},
 		Content:   string(content),
 	}
 	evt.ID = string(evt.Serialize())
