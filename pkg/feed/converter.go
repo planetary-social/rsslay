@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"html"
 	"log"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -58,11 +59,20 @@ func (s *NoteConverter) Convert(pubkey string, item *gofeed.Item, feed *gofeed.F
 		createdAt = *item.PublishedParsed
 	}
 
+	composedProxyLink := feed.FeedLink
+	if item.GUID != "" {
+		composedProxyLink += fmt.Sprintf("#%s", url.QueryEscape(item.GUID))
+	}
+
+	tags := nostr.Tags{
+		[]string{"proxy", composedProxyLink, "rss"},
+	}
+
 	evt := nostr.Event{
 		PubKey:    pubkey,
 		CreatedAt: nostr.Timestamp(createdAt.Unix()),
 		Kind:      nostr.KindTextNote,
-		Tags:      nostr.Tags{},
+		Tags:      tags,
 		Content:   content,
 	}
 	evt.ID = string(evt.Serialize())
@@ -99,6 +109,13 @@ func (l *LongFormConverter) Convert(pubkey string, item *gofeed.Item, feed *gofe
 	if item.Title != "" {
 		tags = append(tags, []string{"title", item.Title})
 	}
+
+	composedProxyLink := feed.FeedLink
+	if item.GUID != "" {
+		composedProxyLink += fmt.Sprintf("#%s", url.QueryEscape(item.GUID))
+	}
+
+	tags = append(tags, []string{"proxy", composedProxyLink, "rss"})
 
 	evt := nostr.Event{
 		PubKey:    pubkey,

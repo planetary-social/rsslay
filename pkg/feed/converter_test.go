@@ -123,6 +123,7 @@ func TestNoteConverter(t *testing.T) {
 		originalUrl      string
 		expectedContent  string
 		maxContentLength int
+		expectedTags     nostr.Tags
 	}{
 		{
 			pubKey:           samplePubKey,
@@ -132,6 +133,9 @@ func TestNoteConverter(t *testing.T) {
 			originalUrl:      sampleNitterFeed.FeedLink,
 			expectedContent:  fmt.Sprintf("**RT %s:**\n\n%s\n\n%s", sampleNitterFeedRTItem.DublinCoreExt.Creator[0], sampleNitterFeedRTItem.Description, strings.ReplaceAll(sampleNitterFeedRTItem.Link, "http://", "https://")),
 			maxContentLength: 250,
+			expectedTags: nostr.Tags{
+				nostr.Tag{"proxy", "https://nitter.moomoo.me/coldplay/rss#http%3A%2F%2Fnitter.moomoo.me%2Fcoldplay%2Fstatus%2F1622148481740685312%23m", "rss"},
+			},
 		},
 		{
 			pubKey:           samplePubKey,
@@ -141,6 +145,9 @@ func TestNoteConverter(t *testing.T) {
 			originalUrl:      sampleNitterFeed.FeedLink,
 			expectedContent:  fmt.Sprintf("**Response to %s:**\n\n%s\n\n%s", "@coldplay", sampleNitterFeedResponseItem.Description, strings.ReplaceAll(sampleNitterFeedResponseItem.Link, "http://", "https://")),
 			maxContentLength: 250,
+			expectedTags: nostr.Tags{
+				nostr.Tag{"proxy", "https://nitter.moomoo.me/coldplay/rss#http%3A%2F%2Fnitter.moomoo.me%2Felonmusk%2Fstatus%2F1621544996167122944%23m", "rss"},
+			},
 		},
 		{
 			pubKey:           samplePubKey,
@@ -150,6 +157,9 @@ func TestNoteConverter(t *testing.T) {
 			originalUrl:      sampleDefaultFeed.FeedLink,
 			expectedContent:  sampleDefaultFeedItemExpectedContentSubstring + "…" + "\n\n" + sampleDefaultFeedItem.Link,
 			maxContentLength: 250,
+			expectedTags: nostr.Tags{
+				nostr.Tag{"proxy", "https://golangweekly.com/rss#https%3A%2F%2Fgolangweekly.com%2Fissues%2F446", "rss"},
+			},
 		},
 		{
 			pubKey:           samplePubKey,
@@ -159,6 +169,9 @@ func TestNoteConverter(t *testing.T) {
 			originalUrl:      sampleDefaultFeed.FeedLink,
 			expectedContent:  sampleDefaultFeedItemExpectedContentSubstring + "…\n\nComments: " + sampleDefaultFeedItemWithComments.Custom["comments"] + "\n\n" + sampleDefaultFeedItem.Link,
 			maxContentLength: 250,
+			expectedTags: nostr.Tags{
+				nostr.Tag{"proxy", "https://golangweekly.com/rss#https%3A%2F%2Fgolangweekly.com%2Fissues%2F446", "rss"},
+			},
 		},
 		{
 			pubKey:           samplePubKey,
@@ -168,6 +181,9 @@ func TestNoteConverter(t *testing.T) {
 			originalUrl:      sampleDefaultFeed.FeedLink,
 			expectedContent:  sampleDefaultFeedItemExpectedContent + "\n\nComments: " + sampleDefaultFeedItemWithComments.Custom["comments"] + "\n\n" + sampleDefaultFeedItem.Link,
 			maxContentLength: 1500,
+			expectedTags: nostr.Tags{
+				nostr.Tag{"proxy", "https://golangweekly.com/rss#https%3A%2F%2Fgolangweekly.com%2Fissues%2F446", "rss"},
+			},
 		},
 		{
 			pubKey:           samplePubKey,
@@ -177,6 +193,9 @@ func TestNoteConverter(t *testing.T) {
 			originalUrl:      sampleStackerNewsFeed.FeedLink,
 			expectedContent:  fmt.Sprintf("**%s**\n\nComments: %s\n\n%s", sampleStackerNewsFeedItem.Title, sampleStackerNewsFeedItem.GUID, sampleStackerNewsFeedItem.Link),
 			maxContentLength: 250,
+			expectedTags: nostr.Tags{
+				nostr.Tag{"proxy", "https://stacker.news/rss#https%3A%2F%2Fstacker.news%2Fitems%2F131533", "rss"},
+			},
 		},
 	}
 	for _, tc := range testCases {
@@ -190,7 +209,7 @@ func TestNoteConverter(t *testing.T) {
 		assert.Equal(t, 1, event.Kind)
 		assert.Equal(t, tc.expectedContent, event.Content)
 		assert.Empty(t, event.Sig)
-		assert.Empty(t, event.Tags)
+		assert.Equal(t, tc.expectedTags, event.Tags)
 	}
 }
 
@@ -279,6 +298,7 @@ func TestLongFormConverter(t *testing.T) {
 				nostr.Tag{"published_at", strconv.FormatInt(actualTime.Unix(), 10)},
 				nostr.Tag{"d", "https://hardyaka.substack.com/p/this-is-the-universal-ledger"},
 				nostr.Tag{"title", "This is the Universal Ledger"},
+				nostr.Tag{"proxy", "https://hardyaka.substack.com#https%3A%2F%2Fhardyaka.substack.com%2Fp%2Fthis-is-the-universal-ledger", "rss"},
 			},
 		},
 	}
