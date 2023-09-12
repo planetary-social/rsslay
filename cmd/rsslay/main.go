@@ -7,6 +7,9 @@ import (
 	"flag"
 	"fmt"
 	"github.com/piraces/rsslay/pkg/new/adapters"
+	app2 "github.com/piraces/rsslay/pkg/new/app"
+	"github.com/piraces/rsslay/pkg/new/domain"
+	"github.com/pkg/errors"
 	"log"
 	"net/http"
 	"os"
@@ -118,17 +121,17 @@ func (r *Relay) OnInitialized(s *relayer.Server) {
 		r.handler.HandleWebpage(writer, request, &r.MainDomainName)
 	})
 	s.Router().Path("/create").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		handlers.HandleCreateFeed(writer, request, r.db, &r.Secret, dsn)
+		r.handler.HandleCreateFeed(writer, request, dsn)
 	})
 	s.Router().Path("/search").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		handlers.HandleSearch(writer, request, r.db)
+		r.handler.HandleSearch(writer, request)
 	})
 	s.Router().
 		PathPrefix(assetsDir).
 		Handler(http.StripPrefix(assetsDir, http.FileServer(http.Dir("./web/"+assetsDir))))
 	s.Router().Path("/healthz").HandlerFunc(relayInstance.healthCheck.HandlerFunc)
 	s.Router().Path("/api/feed").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		handlers.HandleApiFeed(writer, request, r.db, &r.Secret, dsn)
+		r.handler.HandleApiFeed(writer, request, dsn)
 	})
 	s.Router().Path("/.well-known/nostr.json").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		handlers.HandleNip05(writer, request, r.db, &r.OwnerPublicKey, &r.EnableAutoNIP05Registration)
@@ -150,8 +153,19 @@ func (r *Relay) Init() error {
 	db := InitDatabase(r)
 	feedDefinitionStorage := adapters.NewFeedDefinitionStorage(db)
 
+	secret, err := domain.NewSecret(r.Secret)
+	if err != nil {
+		return errors.Wrap(err, "error creating a secret")
+	}
+
+	handlerCreateFeedDefinition := app2.NewHandlerCreateFeedDefinition(secret, feedDefinitionStorage)
+
+	app := &app2.App{
+		CreateFeedDefinition: handlerCreateFeedDefinition,
+	}
+
 	r.db = db
-	r.handler = handlers.NewHandler(db, feedDefinitionStorage)
+	r.handler = handlers.NewHandler(db, feedDefinitionStorage, app)
 
 	go r.UpdateListeningFilters()
 
