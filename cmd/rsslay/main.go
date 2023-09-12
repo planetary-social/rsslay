@@ -74,6 +74,7 @@ type Relay struct {
 	converterSelector  *feed.ConverterSelector
 	cache              *cache.Cache[string]
 	handler            *handlers.Handler
+	store              *store
 }
 
 var relayInstance = &Relay{
@@ -160,12 +161,13 @@ func (r *Relay) Init() error {
 
 	handlerCreateFeedDefinition := app2.NewHandlerCreateFeedDefinition(secret, feedDefinitionStorage)
 
-	app := &app2.App{
+	app := app2.App{
 		CreateFeedDefinition: handlerCreateFeedDefinition,
 	}
 
 	r.db = db
 	r.handler = handlers.NewHandler(db, feedDefinitionStorage, app)
+	r.store = newStore(app)
 
 	go r.UpdateListeningFilters()
 
@@ -237,7 +239,7 @@ func (r *Relay) AcceptEvent(_ *nostr.Event) bool {
 }
 
 func (r *Relay) Storage() relayer.Storage {
-	return store{r.db}
+	return r.store
 }
 
 func (r *Relay) InjectEvents() chan nostr.Event {

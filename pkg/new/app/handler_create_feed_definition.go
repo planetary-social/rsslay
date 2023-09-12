@@ -10,10 +10,6 @@ import (
 	"strings"
 )
 
-type FeedDefinitionStorage interface {
-	Put(definition *feeddomain.FeedDefinition) error
-}
-
 type HandlerCreateFeedDefinition struct {
 	secret                domain.Secret
 	feedDefinitionStorage FeedDefinitionStorage

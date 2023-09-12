@@ -15,6 +15,11 @@ type FeedDefinitionStorage struct {
 	db *sql.DB
 }
 
+func (f *FeedDefinitionStorage) List() ([]*domainfeed.FeedDefinition, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
 func NewFeedDefinitionStorage(db *sql.DB) *FeedDefinitionStorage {
 	return &FeedDefinitionStorage{db: db}
 }

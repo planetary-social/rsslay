@@ -1,10 +1,13 @@
 package app
 
-import "errors"
+import (
+	"errors"
+)
 
 type HandlerUpdateFeeds struct {
 }
 
 func (h *HandlerUpdateFeeds) Handle() error {
+
 	return errors.New("not implemented")
 }

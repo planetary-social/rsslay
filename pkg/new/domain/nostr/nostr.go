@@ -8,11 +8,25 @@ import (
 )
 
 type Filter struct {
-	filter nostr.Filter
+	filter *nostr.Filter
+}
+
+func NewFilter(filter *nostr.Filter) Filter {
+	return Filter{
+		filter: filter,
+	}
+}
+func (f Filter) Libfilter() *nostr.Filter {
+
+	return f.filter
 }
 
 type Event struct {
 	event nostr.Event
+}
+
+func (e Event) Libevent() nostr.Event {
+	return e.event
 }
 
 type PublicKey struct {
