@@ -4,9 +4,9 @@ import (
 	"context"
 	"database/sql"
 	_ "embed"
-	"errors"
 	"flag"
 	"fmt"
+	"github.com/piraces/rsslay/pkg/new/adapters"
 	"log"
 	"net/http"
 	"os"
@@ -70,6 +70,7 @@ type Relay struct {
 	routineQueueLength int
 	converterSelector  *feed.ConverterSelector
 	cache              *cache.Cache[string]
+	handler            *handlers.Handler
 }
 
 var relayInstance = &Relay{
@@ -114,7 +115,7 @@ func (r *Relay) Name() string {
 
 func (r *Relay) OnInitialized(s *relayer.Server) {
 	s.Router().Path("/").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		handlers.HandleWebpage(writer, request, r.db, &r.MainDomainName)
+		r.handler.HandleWebpage(writer, request, &r.MainDomainName)
 	})
 	s.Router().Path("/create").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		handlers.HandleCreateFeed(writer, request, r.db, &r.Secret, dsn)
@@ -145,7 +146,12 @@ func (r *Relay) Init() error {
 	}
 
 	ConfigureCache()
-	r.db = InitDatabase(r)
+
+	db := InitDatabase(r)
+	feedDefinitionStorage := adapters.NewFeedDefinitionStorage(db)
+
+	r.db = db
+	r.handler = handlers.NewHandler(db, feedDefinitionStorage)
 
 	go r.UpdateListeningFilters()
 
@@ -218,100 +224,6 @@ func (r *Relay) AcceptEvent(_ *nostr.Event) bool {
 
 func (r *Relay) Storage() relayer.Storage {
 	return store{r.db}
-}
-
-type store struct {
-	db *sql.DB
-}
-
-func (b store) Init() error { return nil }
-func (b store) SaveEvent(_ *nostr.Event) error {
-	metrics.InvalidEventsRequests.Inc()
-	return errors.New("blocked: we don't accept any events")
-}
-
-func (b store) DeleteEvent(_, _ string) error {
-	metrics.InvalidEventsRequests.Inc()
-	return errors.New("blocked: we can't delete any events")
-}
-
-func (b store) QueryEvents(filter *nostr.Filter) ([]nostr.Event, error) {
-	var parsedEvents []nostr.Event
-	var eventsToReplay []replayer.EventWithPrivateKey
-
-	metrics.QueryEventsRequests.Inc()
-
-	if filter.IDs != nil || len(filter.Tags) > 0 {
-		return parsedEvents, nil
-	}
-
-	for _, pubkey := range filter.Authors {
-		parsedFeed, entity := events.GetParsedFeedForPubKey(pubkey, relayInstance.db, relayInstance.DeleteFailingFeeds, relayInstance.NitterInstances)
-
-		if parsedFeed == nil {
-			continue
-		}
-
-		converter := relayInstance.converterSelector.Select(parsedFeed)
-
-		if filter.Kinds == nil || slices.Contains(filter.Kinds, nostr.KindSetMetadata) {
-			evt := feed.EntryFeedToSetMetadata(pubkey, parsedFeed, entity.URL, relayInstance.EnableAutoNIP05Registration, relayInstance.DefaultProfilePictureUrl, relayInstance.MainDomainName)
-
-			if filter.Since != nil && evt.CreatedAt < *filter.Since {
-				continue
-			}
-			if filter.Until != nil && evt.CreatedAt > *filter.Until {
-				continue
-			}
-
-			_ = evt.Sign(entity.PrivateKey)
-			parsedEvents = append(parsedEvents, evt)
-			if relayInstance.ReplayToRelays {
-				eventsToReplay = append(eventsToReplay, replayer.EventWithPrivateKey{Event: &evt, PrivateKey: entity.PrivateKey})
-			}
-		}
-
-		if filter.Kinds == nil || slices.Contains(filter.Kinds, nostr.KindTextNote) || slices.Contains(filter.Kinds, feed.KindLongFormTextContent) {
-			var last uint32 = 0
-			for _, item := range parsedFeed.Items {
-				defaultCreatedAt := time.Unix(time.Now().Unix(), 0)
-				evt := converter.Convert(pubkey, item, parsedFeed, defaultCreatedAt, entity.URL)
-
-				// Feed need to have a date for each entry...
-				if evt.CreatedAt == nostr.Timestamp(defaultCreatedAt.Unix()) {
-					continue
-				}
-
-				if filter.Since != nil && evt.CreatedAt < *filter.Since {
-					continue
-				}
-				if filter.Until != nil && evt.CreatedAt > *filter.Until {
-					continue
-				}
-
-				_ = evt.Sign(entity.PrivateKey)
-
-				if !filter.Matches(&evt) {
-					continue
-				}
-
-				if evt.CreatedAt > nostr.Timestamp(int64(last)) {
-					last = uint32(evt.CreatedAt)
-				}
-
-				parsedEvents = append(parsedEvents, evt)
-				if relayInstance.ReplayToRelays {
-					eventsToReplay = append(eventsToReplay, replayer.EventWithPrivateKey{Event: &evt, PrivateKey: entity.PrivateKey})
-				}
-			}
-
-			relayInstance.lastEmitted.Store(entity.URL, last)
-		}
-	}
-
-	relayInstance.AttemptReplayEvents(eventsToReplay)
-
-	return parsedEvents, nil
 }
 
 func (r *Relay) InjectEvents() chan nostr.Event {

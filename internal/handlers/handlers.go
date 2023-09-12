@@ -3,6 +3,8 @@ package handlers
 import (
 	"database/sql"
 	"encoding/json"
+	"github.com/piraces/rsslay/pkg/new/adapters"
+	domainfeed "github.com/piraces/rsslay/pkg/new/domain/feed"
 	"html/template"
 	"log"
 	"net/http"
@@ -40,47 +42,42 @@ type PageData struct {
 	MainDomainName string
 }
 
-func HandleWebpage(w http.ResponseWriter, r *http.Request, db *sql.DB, mainDomainName *string) {
+type FeedDefnitionStorage interface {
+	ListRandom(n int) ([]domainfeed.FeedDefinition, error)
+}
+
+type Handler struct {
+	db                    *sql.DB
+	feedDefinitionStorage *adapters.FeedDefinitionStorage
+}
+
+func NewHandler(
+	db *sql.DB,
+	feedDefinitionStorage *adapters.FeedDefinitionStorage,
+) *Handler {
+	return &Handler{
+		db:                    db,
+		feedDefinitionStorage: feedDefinitionStorage,
+	}
+}
+
+func (f *Handler) HandleWebpage(w http.ResponseWriter, r *http.Request, mainDomainName *string) {
 	mustRedirect := handleOtherRegion(w, r)
 	if mustRedirect {
 		return
 	}
 
 	metrics.IndexRequests.Inc()
-	var count uint64
-	row := db.QueryRow(`SELECT count(*) FROM feeds`)
-	err := row.Scan(&count)
+
+	feedDefinitions, err := f.feedDefinitionStorage.ListRandom(50)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	var items []Entry
-	rows, err := db.Query(`SELECT publickey, url FROM feeds ORDER BY RANDOM() LIMIT 50`)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	for rows.Next() {
-		var entry Entry
-		if err := rows.Scan(&entry.PubKey, &entry.Url); err != nil {
-			log.Printf("[ERROR] failed to scan row iterating feeds: %v", err)
-			metrics.AppErrors.With(prometheus.Labels{"type": "SQL_SCAN"}).Inc()
-			continue
-		}
-
-		entry.NPubKey, _ = nip19.EncodePublicKey(entry.PubKey)
-		items = append(items, entry)
-	}
-	if err := rows.Close(); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	data := PageData{
-		Count:          count,
-		Entries:        items,
+		Count:          uint64(len(feedDefinitions)),
+		Entries:        toEntries(feedDefinitions),
 		MainDomainName: *mainDomainName,
 	}
 
@@ -306,4 +303,16 @@ func insertFeed(err error, feedUrl string, publicKey string, sk string, nitter b
 	} else {
 		log.Printf("[DEBUG] found feed at url %q as publicKey %s", feedUrl, publicKey)
 	}
+}
+
+func toEntries(definitions []*domainfeed.FeedDefinition) []Entry {
+	var entries []Entry
+	for _, definition := range definitions {
+		entries = append(entries, Entry{
+			PubKey:  definition.PublicKey().Hex(),
+			NPubKey: definition.PublicKey().Nip19(),
+			Url:     definition.Address().String(),
+		})
+	}
+	return entries
 }
