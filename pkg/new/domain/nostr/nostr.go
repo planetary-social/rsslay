@@ -46,10 +46,6 @@ type PrivateKey struct {
 	b []byte
 }
 
-func (k PrivateKey) Hex() any {
-	return hex.EncodeToString(k.b)
-}
-
 func NewPrivateKeyFromHex(s string) (PrivateKey, error) {
 	b, err := hex.DecodeString(s)
 	if err != nil {
@@ -59,4 +55,8 @@ func NewPrivateKeyFromHex(s string) (PrivateKey, error) {
 	// todo len check
 
 	return PrivateKey{b: b}, nil
+}
+
+func (k PrivateKey) Hex() any {
+	return hex.EncodeToString(k.b)
 }
