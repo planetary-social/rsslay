@@ -2,6 +2,7 @@ package feed
 
 import (
 	"errors"
+
 	"github.com/piraces/rsslay/pkg/helpers"
 	"github.com/piraces/rsslay/pkg/new/domain/nostr"
 )

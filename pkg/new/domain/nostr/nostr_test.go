@@ -1,9 +1,10 @@
 package nostr_test
 
 import (
+	"testing"
+
 	"github.com/piraces/rsslay/pkg/new/domain/nostr"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestNip19DoesNotPanic(t *testing.T) {

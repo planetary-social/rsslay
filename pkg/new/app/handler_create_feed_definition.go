@@ -1,13 +1,14 @@
 package app
 
 import (
+	"strings"
+
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/piraces/rsslay/pkg/feed"
 	"github.com/piraces/rsslay/pkg/new/domain"
 	feeddomain "github.com/piraces/rsslay/pkg/new/domain/feed"
 	nostrdomain "github.com/piraces/rsslay/pkg/new/domain/nostr"
 	"github.com/pkg/errors"
-	"strings"
 )
 
 type HandlerCreateFeedDefinition struct {

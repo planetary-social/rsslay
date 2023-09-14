@@ -3,6 +3,13 @@ package handlers
 import (
 	"database/sql"
 	"encoding/json"
+	"html/template"
+	"log"
+	"net/http"
+	"net/url"
+	"os"
+	"path/filepath"
+
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/nbd-wtf/go-nostr/nip05"
 	"github.com/piraces/rsslay/pkg/feed"
@@ -11,12 +18,6 @@ import (
 	"github.com/piraces/rsslay/pkg/new/app"
 	domainfeed "github.com/piraces/rsslay/pkg/new/domain/feed"
 	"github.com/piraces/rsslay/web/templates"
-	"html/template"
-	"log"
-	"net/http"
-	"net/url"
-	"os"
-	"path/filepath"
 )
 
 var t = template.Must(template.ParseFS(templates.Templates, "*.tmpl"))

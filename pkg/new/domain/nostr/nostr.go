@@ -1,7 +1,9 @@
 package nostr
 
 import (
+	"bytes"
 	"encoding/hex"
+
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/nbd-wtf/go-nostr/nip19"
 	"github.com/pkg/errors"
@@ -21,12 +23,33 @@ func (f Filter) Libfilter() *nostr.Filter {
 	return f.filter
 }
 
+func (f Filter) Matches(event Event) bool {
+	libevent := event.Libevent()
+	return f.Libfilter().Matches(&libevent)
+}
+
 type Event struct {
-	event nostr.Event
+	publicKey PublicKey
+	event     nostr.Event
+}
+
+func NewEvent(event nostr.Event) (Event, error) {
+	publicKey, err := NewPublicKeyFromHex(event.PubKey)
+	if err != nil {
+		return Event{}, errors.Wrap(err, "error parsing the public key")
+	}
+	return Event{
+		publicKey: publicKey,
+		event:     event,
+	}, nil
 }
 
 func (e Event) Libevent() nostr.Event {
 	return e.event
+}
+
+func (e Event) PublicKey() PublicKey {
+	return e.publicKey
 }
 
 type PublicKey struct {
@@ -54,6 +77,10 @@ func (p PublicKey) Nip19() string {
 		panic(err) // will either always fail or never fail so tests are enough
 	}
 	return nip19
+}
+
+func (p PublicKey) Equal(o PublicKey) bool {
+	return bytes.Equal(p.b, o.b)
 }
 
 type PrivateKey struct {

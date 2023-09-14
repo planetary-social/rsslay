@@ -6,10 +6,6 @@ import (
 	_ "embed"
 	"flag"
 	"fmt"
-	"github.com/piraces/rsslay/pkg/new/adapters"
-	app2 "github.com/piraces/rsslay/pkg/new/app"
-	"github.com/piraces/rsslay/pkg/new/domain"
-	"github.com/pkg/errors"
 	"log"
 	"net/http"
 	"os"
@@ -31,8 +27,13 @@ import (
 	"github.com/piraces/rsslay/pkg/events"
 	"github.com/piraces/rsslay/pkg/feed"
 	"github.com/piraces/rsslay/pkg/metrics"
+	"github.com/piraces/rsslay/pkg/new/adapters"
+	app2 "github.com/piraces/rsslay/pkg/new/app"
+	"github.com/piraces/rsslay/pkg/new/domain"
+	"github.com/piraces/rsslay/pkg/new/ports"
 	"github.com/piraces/rsslay/pkg/replayer"
 	"github.com/piraces/rsslay/scripts"
+	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"golang.org/x/exp/slices"
 )
@@ -141,6 +142,8 @@ func (r *Relay) OnInitialized(s *relayer.Server) {
 }
 
 func (r *Relay) Init() error {
+	ctx := context.TODO()
+
 	flag.Parse()
 	err := envconfig.Process("", r)
 	if err != nil {
@@ -153,16 +156,37 @@ func (r *Relay) Init() error {
 
 	db := InitDatabase(r)
 	feedDefinitionStorage := adapters.NewFeedDefinitionStorage(db)
+	eventStorage := adapters.NewEventStorage()
 
 	secret, err := domain.NewSecret(r.Secret)
 	if err != nil {
 		return errors.Wrap(err, "error creating a secret")
 	}
 
+	r.converterSelector = feed.NewConverterSelector(feed.NewLongFormConverter())
+
 	handlerCreateFeedDefinition := app2.NewHandlerCreateFeedDefinition(secret, feedDefinitionStorage)
+	handlerUpdateFeeds := app2.NewHandlerUpdateFeeds(
+		r.DeleteFailingFeeds,
+		r.NitterInstances,
+		r.EnableAutoNIP05Registration,
+		r.DefaultProfilePictureUrl,
+		r.MainDomainName,
+		r.ReplayToRelays,
+		db,
+		feedDefinitionStorage,
+		r.converterSelector,
+		eventStorage,
+	)
+	handlerGetEvents := app2.NewHandlerGetEvents(eventStorage)
+
+	updateFeedsTimer := ports.NewUpdateFeedsTimer(handlerUpdateFeeds)
+	go updateFeedsTimer.Run(ctx)
 
 	app := app2.App{
 		CreateFeedDefinition: handlerCreateFeedDefinition,
+		UpdateFeeds:          handlerUpdateFeeds,
+		GetEvents:            handlerGetEvents,
 	}
 
 	r.db = db
@@ -170,9 +194,6 @@ func (r *Relay) Init() error {
 	r.store = newStore(app)
 
 	go r.UpdateListeningFilters()
-
-	longFormConverter := feed.NewLongFormConverter()
-	r.converterSelector = feed.NewConverterSelector(longFormConverter)
 
 	return nil
 }

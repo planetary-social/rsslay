@@ -2,22 +2,18 @@ package adapters
 
 import (
 	"database/sql"
+	"log"
+
 	"github.com/piraces/rsslay/pkg/feed"
 	"github.com/piraces/rsslay/pkg/metrics"
 	domainfeed "github.com/piraces/rsslay/pkg/new/domain/feed"
 	"github.com/piraces/rsslay/pkg/new/domain/nostr"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
-	"log"
 )
 
 type FeedDefinitionStorage struct {
 	db *sql.DB
-}
-
-func (f *FeedDefinitionStorage) List() ([]*domainfeed.FeedDefinition, error) {
-	//TODO implement me
-	panic("implement me")
 }
 
 func NewFeedDefinitionStorage(db *sql.DB) *FeedDefinitionStorage {
@@ -33,6 +29,19 @@ func (f *FeedDefinitionStorage) CountTotal() (int, error) {
 	}
 
 	return count, nil
+}
+
+func (f *FeedDefinitionStorage) List() ([]*domainfeed.FeedDefinition, error) {
+	rows, err := f.db.Query(`
+		SELECT publickey, privatekey, url, nitter
+		FROM feeds`,
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "error getting feed definitions")
+	}
+	defer rows.Close() // not much we can do here
+
+	return f.scan(rows)
 }
 
 func (f *FeedDefinitionStorage) ListRandom(limit int) ([]*domainfeed.FeedDefinition, error) {

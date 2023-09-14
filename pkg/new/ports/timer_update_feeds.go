@@ -7,7 +7,7 @@ import (
 )
 
 type HandlerUpdateFeeds interface {
-	Handle() error
+	Handle(ctx context.Context) error
 }
 
 type UpdateFeedsTimer struct {
@@ -20,7 +20,7 @@ func NewUpdateFeedsTimer(handler HandlerUpdateFeeds) *UpdateFeedsTimer {
 
 func (h *UpdateFeedsTimer) Run(ctx context.Context) {
 	for {
-		if err := h.handler.Handle(); err != nil {
+		if err := h.handler.Handle(ctx); err != nil {
 			log.Printf("error updating feeds %s", err)
 		}
 
