@@ -131,12 +131,15 @@ func (f *FeedDefinitionStorage) scan(rows *sql.Rows) ([]*domainfeed.FeedDefiniti
 			return nil, errors.Wrap(err, "error creating address")
 		}
 
-		feedDefinition := domainfeed.NewFeedDefinition(
+		feedDefinition, err := domainfeed.NewFeedDefinition(
 			publicKey,
 			privateKey,
 			address,
 			tmpnitter,
 		)
+		if err != nil {
+			return nil, errors.Wrap(err, "error loading feed definition")
+		}
 
 		items = append(items, feedDefinition)
 	}

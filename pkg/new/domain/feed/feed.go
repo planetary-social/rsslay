@@ -14,8 +14,12 @@ type FeedDefinition struct {
 	nitter     bool
 }
 
-func NewFeedDefinition(publicKey nostr.PublicKey, privateKey nostr.PrivateKey, address Address, nitter bool) *FeedDefinition {
-	return &FeedDefinition{publicKey: publicKey, privateKey: privateKey, address: address, nitter: nitter}
+func NewFeedDefinition(publicKey nostr.PublicKey, privateKey nostr.PrivateKey, address Address, nitter bool) (*FeedDefinition, error) {
+	if !publicKey.Matches(privateKey) {
+		return nil, errors.New("public/private key mismatch")
+	}
+
+	return &FeedDefinition{publicKey: publicKey, privateKey: privateKey, address: address, nitter: nitter}, nil
 }
 
 func (f FeedDefinition) PublicKey() nostr.PublicKey {

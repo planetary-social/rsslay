@@ -141,8 +141,6 @@ func (h *HandlerUpdateFeeds) updateFeed(ctx context.Context, definition *domainf
 		return errors.Wrapf(err, "error getting events for feed '%s'", definition.PublicKey().Hex())
 	}
 
-	log.Printf("got %d events for feed %s", len(events), definition.PublicKey().Hex())
-
 	if err := h.eventStorage.PutEvents(definition.PublicKey(), events); err != nil {
 		return errors.Wrap(err, "error saving events")
 	}

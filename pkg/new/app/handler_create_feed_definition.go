@@ -31,8 +31,8 @@ func (h *HandlerCreateFeedDefinition) Handle(address feeddomain.Address) (*feedd
 		return nil, errors.Wrap(err, "error parsing feed")
 	}
 
-	sk := feed.PrivateKeyFromFeed(feedUrl, h.secret.String())
-	publicKey, err := nostr.GetPublicKey(sk)
+	privateKey := feed.PrivateKeyFromFeed(feedUrl, h.secret.String())
+	publicKey, err := nostr.GetPublicKey(privateKey)
 	if err != nil {
 		return nil, errors.Wrap(err, "error creating a public key")
 	}
@@ -49,7 +49,7 @@ func (h *HandlerCreateFeedDefinition) Handle(address feeddomain.Address) (*feedd
 		return nil, errors.Wrap(err, "error creating address from feed url")
 	}
 
-	domainPrivateKey, err := nostrdomain.NewPrivateKeyFromHex(publicKey)
+	domainPrivateKey, err := nostrdomain.NewPrivateKeyFromHex(privateKey)
 	if err != nil {
 		return nil, errors.Wrap(err, "error creating address from feed url")
 	}
@@ -59,12 +59,15 @@ func (h *HandlerCreateFeedDefinition) Handle(address feeddomain.Address) (*feedd
 		return nil, errors.Wrap(err, "error creating address from feed url")
 	}
 
-	definition := feeddomain.NewFeedDefinition(
+	definition, err := feeddomain.NewFeedDefinition(
 		domainPublicKey,
 		domainPrivateKey,
 		domainFeedUrl,
 		isNitterFeed,
 	)
+	if err != nil {
+		return nil, errors.Wrap(err, "error creating feed definition")
+	}
 
 	if err := h.feedDefinitionStorage.Put(definition); err != nil {
 		return nil, errors.Wrap(err, "error saving the feed definition")

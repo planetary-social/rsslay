@@ -5,6 +5,8 @@ import (
 	"encoding/hex"
 	"time"
 
+	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/nbd-wtf/go-nostr/nip19"
 	"github.com/pkg/errors"
@@ -86,6 +88,12 @@ func (p PublicKey) Nip19() string {
 
 func (p PublicKey) Equal(o PublicKey) bool {
 	return bytes.Equal(p.b, o.b)
+}
+
+func (p PublicKey) Matches(key PrivateKey) bool {
+	_, publicKey := btcec.PrivKeyFromBytes(key.b)
+	hexPublicKey := hex.EncodeToString(schnorr.SerializePubKey(publicKey))
+	return p.Hex() == hexPublicKey
 }
 
 type PrivateKey struct {

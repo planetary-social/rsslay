@@ -2,6 +2,7 @@ package adapters
 
 import (
 	"errors"
+	"log"
 	"sync"
 
 	domain "github.com/piraces/rsslay/pkg/new/domain/nostr"
@@ -21,6 +22,8 @@ func NewEventStorage() *EventStorage {
 func (e *EventStorage) PutEvents(author domain.PublicKey, events []domain.Event) error {
 	e.eventsLock.Lock()
 	defer e.eventsLock.Unlock()
+
+	log.Printf("saving %d events for feed %s", len(events), author.Hex())
 
 	for _, event := range events {
 		if !author.Equal(event.PublicKey()) {
