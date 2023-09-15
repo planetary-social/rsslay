@@ -44,18 +44,15 @@ type FeedDefnitionStorage interface {
 }
 
 type Handler struct {
-	db                    *sql.DB                         // todo REMOVE!!
 	feedDefinitionStorage *adapters.FeedDefinitionStorage // todo REMOVE!!
 	app                   app.App
 }
 
 func NewHandler(
-	db *sql.DB,
 	feedDefinitionStorage *adapters.FeedDefinitionStorage,
 	app app.App,
 ) *Handler {
 	return &Handler{
-		db:                    db,
 		feedDefinitionStorage: feedDefinitionStorage,
 		app:                   app,
 	}

@@ -67,7 +67,6 @@ type Relay struct {
 	RedisConnectionString           string   `envconfig:"REDIS_CONNECTION_STRING" default:""`
 
 	updates            chan nostr.Event
-	lastEmitted        sync.Map
 	db                 *sql.DB
 	healthCheck        *health.Health
 	mutex              sync.Mutex
@@ -192,7 +191,7 @@ func (r *Relay) Init() error {
 	}
 
 	r.db = db
-	r.handler = handlers.NewHandler(db, feedDefinitionStorage, app)
+	r.handler = handlers.NewHandler(feedDefinitionStorage, app)
 	r.store = newStore(app)
 
 	go updateFeedsTimer.Run(ctx)
