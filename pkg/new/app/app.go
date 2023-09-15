@@ -26,3 +26,7 @@ type EventStorage interface {
 type ConverterSelector interface {
 	Select(feed *gofeed.Feed) feed.ItemToEventConverter
 }
+
+type EventPublisher interface {
+	PublishNewEventCreated(evt domain.Event)
+}

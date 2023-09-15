@@ -24,18 +24,18 @@ import (
 	"github.com/nbd-wtf/go-nostr/nip11"
 	"github.com/piraces/rsslay/internal/handlers"
 	"github.com/piraces/rsslay/pkg/custom_cache"
-	"github.com/piraces/rsslay/pkg/events"
 	"github.com/piraces/rsslay/pkg/feed"
 	"github.com/piraces/rsslay/pkg/metrics"
 	"github.com/piraces/rsslay/pkg/new/adapters"
-	app2 "github.com/piraces/rsslay/pkg/new/app"
+	pubsubadapters "github.com/piraces/rsslay/pkg/new/adapters/pubsub"
+	"github.com/piraces/rsslay/pkg/new/app"
 	"github.com/piraces/rsslay/pkg/new/domain"
 	"github.com/piraces/rsslay/pkg/new/ports"
+	pubsub2 "github.com/piraces/rsslay/pkg/new/ports/pubsub"
 	"github.com/piraces/rsslay/pkg/replayer"
 	"github.com/piraces/rsslay/scripts"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"golang.org/x/exp/slices"
 )
 
 // Command line flags.
@@ -157,6 +157,7 @@ func (r *Relay) Init() error {
 	db := InitDatabase(r)
 	feedDefinitionStorage := adapters.NewFeedDefinitionStorage(db)
 	eventStorage := adapters.NewEventStorage()
+	receivedEventPubSub := pubsubadapters.NewReceivedEventPubSub()
 
 	secret, err := domain.NewSecret(r.Secret)
 	if err != nil {
@@ -165,25 +166,26 @@ func (r *Relay) Init() error {
 
 	r.converterSelector = feed.NewConverterSelector(feed.NewLongFormConverter())
 
-	handlerCreateFeedDefinition := app2.NewHandlerCreateFeedDefinition(secret, feedDefinitionStorage)
-	handlerUpdateFeeds := app2.NewHandlerUpdateFeeds(
+	handlerCreateFeedDefinition := app.NewHandlerCreateFeedDefinition(secret, feedDefinitionStorage)
+	handlerUpdateFeeds := app.NewHandlerUpdateFeeds(
 		r.DeleteFailingFeeds,
 		r.NitterInstances,
 		r.EnableAutoNIP05Registration,
 		r.DefaultProfilePictureUrl,
 		r.MainDomainName,
-		r.ReplayToRelays,
 		db,
 		feedDefinitionStorage,
 		r.converterSelector,
 		eventStorage,
+		receivedEventPubSub,
 	)
-	handlerGetEvents := app2.NewHandlerGetEvents(eventStorage)
+	handlerGetEvents := app.NewHandlerGetEvents(eventStorage)
+	handlerOnNewEventCreated := app.NewHandlerOnNewEventCreated(r.updates)
 
 	updateFeedsTimer := ports.NewUpdateFeedsTimer(handlerUpdateFeeds)
-	go updateFeedsTimer.Run(ctx)
+	receivedEventSubscriber := pubsub2.NewReceivedEventSubscriber(receivedEventPubSub, handlerOnNewEventCreated)
 
-	app := app2.App{
+	app := app.App{
 		CreateFeedDefinition: handlerCreateFeedDefinition,
 		UpdateFeeds:          handlerUpdateFeeds,
 		GetEvents:            handlerGetEvents,
@@ -193,49 +195,10 @@ func (r *Relay) Init() error {
 	r.handler = handlers.NewHandler(db, feedDefinitionStorage, app)
 	r.store = newStore(app)
 
-	go r.UpdateListeningFilters()
+	go updateFeedsTimer.Run(ctx)
+	go receivedEventSubscriber.Run(ctx)
 
 	return nil
-}
-
-func (r *Relay) UpdateListeningFilters() {
-	for {
-		time.Sleep(20 * time.Minute)
-		metrics.ListeningFiltersOps.Inc()
-
-		filters := relayer.GetListeningFilters()
-		log.Printf("[DEBUG] Checking for updates; %d filters active", len(filters))
-
-		var parsedEvents []replayer.EventWithPrivateKey
-		for _, filter := range filters {
-			if filter.Kinds == nil || slices.Contains(filter.Kinds, nostr.KindTextNote) {
-				for _, pubkey := range filter.Authors {
-					parsedFeed, entity := events.GetParsedFeedForPubKey(pubkey, r.db, r.DeleteFailingFeeds, r.NitterInstances)
-					if parsedFeed == nil {
-						continue
-					}
-
-					converter := r.converterSelector.Select(parsedFeed)
-
-					for _, item := range parsedFeed.Items {
-						defaultCreatedAt := time.Unix(time.Now().Unix(), 0)
-						evt := converter.Convert(pubkey, item, parsedFeed, defaultCreatedAt, entity.URL)
-						last, ok := r.lastEmitted.Load(entity.URL)
-						if last == nil {
-							last = uint32(time.Now().Unix())
-						}
-						if !ok || nostr.Timestamp(int64(last.(uint32))) < evt.CreatedAt {
-							_ = evt.Sign(entity.PrivateKey)
-							r.updates <- evt
-							r.lastEmitted.Store(entity.URL, last.(uint32))
-							parsedEvents = append(parsedEvents, replayer.EventWithPrivateKey{Event: &evt, PrivateKey: entity.PrivateKey})
-						}
-					}
-				}
-			}
-		}
-		r.AttemptReplayEvents(parsedEvents)
-	}
 }
 
 func (r *Relay) AttemptReplayEvents(events []replayer.EventWithPrivateKey) {

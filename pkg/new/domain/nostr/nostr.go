@@ -3,6 +3,7 @@ package nostr
 import (
 	"bytes"
 	"encoding/hex"
+	"time"
 
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/nbd-wtf/go-nostr/nip19"
@@ -50,6 +51,10 @@ func (e Event) Libevent() nostr.Event {
 
 func (e Event) PublicKey() PublicKey {
 	return e.publicKey
+}
+
+func (e Event) CreatedAt() time.Time {
+	return e.event.CreatedAt.Time()
 }
 
 type PublicKey struct {

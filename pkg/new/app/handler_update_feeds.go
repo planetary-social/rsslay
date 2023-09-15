@@ -13,7 +13,6 @@ import (
 	"github.com/piraces/rsslay/pkg/feed"
 	domainfeed "github.com/piraces/rsslay/pkg/new/domain/feed"
 	domain "github.com/piraces/rsslay/pkg/new/domain/nostr"
-	"github.com/piraces/rsslay/pkg/replayer"
 	"github.com/pkg/errors"
 )
 
@@ -25,12 +24,12 @@ type HandlerUpdateFeeds struct {
 	enableAutoNIP05Registration bool
 	defaultProfilePictureUrl    string
 	mainDomainName              string
-	replayToRelays              bool
 
 	db                    *sql.DB // todo remove!
 	feedDefinitionStorage FeedDefinitionStorage
 	converterSelector     ConverterSelector
 	eventStorage          EventStorage
+	eventPublisher        EventPublisher
 }
 
 func NewHandlerUpdateFeeds(
@@ -39,11 +38,11 @@ func NewHandlerUpdateFeeds(
 	enableAutoNIP05Registration bool,
 	defaultProfilePictureUrl string,
 	mainDomainName string,
-	replayToRelays bool,
 	db *sql.DB,
 	feedDefinitionStorage FeedDefinitionStorage,
 	converterSelector ConverterSelector,
 	eventStorage EventStorage,
+	eventPublisher EventPublisher,
 ) *HandlerUpdateFeeds {
 	return &HandlerUpdateFeeds{
 		deleteFailingFeeds:          deleteFailingFeeds,
@@ -51,11 +50,11 @@ func NewHandlerUpdateFeeds(
 		enableAutoNIP05Registration: enableAutoNIP05Registration,
 		defaultProfilePictureUrl:    defaultProfilePictureUrl,
 		mainDomainName:              mainDomainName,
-		replayToRelays:              replayToRelays,
 		db:                          db,
 		feedDefinitionStorage:       feedDefinitionStorage,
 		converterSelector:           converterSelector,
 		eventStorage:                eventStorage,
+		eventPublisher:              eventPublisher,
 	}
 }
 
@@ -133,9 +132,29 @@ func (h *HandlerUpdateFeeds) startWorker(ctx context.Context, chIn chan *domainf
 	}
 }
 
+// todo restore the capability to replay events?
 func (h *HandlerUpdateFeeds) updateFeed(ctx context.Context, definition *domainfeed.FeedDefinition) error {
 	log.Printf("updating feed %s", definition.PublicKey().Hex())
 
+	events, err := h.getFeedEvents(definition)
+	if err != nil {
+		return errors.Wrapf(err, "error getting events for feed '%s'", definition.PublicKey().Hex())
+	}
+
+	log.Printf("got %d events for feed %s", len(events), definition.PublicKey().Hex())
+
+	if err := h.eventStorage.PutEvents(definition.PublicKey(), events); err != nil {
+		return errors.Wrap(err, "error saving events")
+	}
+
+	for _, event := range events {
+		h.eventPublisher.PublishNewEventCreated(event)
+	}
+
+	return nil
+}
+
+func (h *HandlerUpdateFeeds) getFeedEvents(definition *domainfeed.FeedDefinition) ([]domain.Event, error) {
 	parsedFeed, entity := events.GetParsedFeedForPubKey(
 		definition.PublicKey().Hex(),
 		h.db,
@@ -143,25 +162,19 @@ func (h *HandlerUpdateFeeds) updateFeed(ctx context.Context, definition *domainf
 		h.nitterInstances,
 	)
 	if parsedFeed == nil {
-		return nil
+		return nil, nil // todo why is this not an error?
 	}
 
-	var events []nostr.Event
-	var eventsToReplay []replayer.EventWithPrivateKey
-
-	converter := h.converterSelector.Select(parsedFeed)
+	var events []domain.Event
 
 	metadataEvent, err := h.makeMetadataEvent(definition, parsedFeed, entity)
 	if err != nil {
-		return errors.Wrap(err, "error creating the metadata event")
+		return nil, errors.Wrap(err, "error creating the metadata event")
 	}
-
 	events = append(events, metadataEvent)
-	if h.replayToRelays {
-		eventsToReplay = append(eventsToReplay, replayer.EventWithPrivateKey{Event: &metadataEvent, PrivateKey: entity.PrivateKey})
-	}
 
-	//var last uint32 = 0
+	converter := h.converterSelector.Select(parsedFeed)
+
 	for _, item := range parsedFeed.Items {
 		defaultCreatedAt := time.Unix(time.Now().Unix(), 0)
 		evt := converter.Convert(definition.PublicKey().Hex(), item, parsedFeed, defaultCreatedAt, entity.URL)
@@ -172,46 +185,30 @@ func (h *HandlerUpdateFeeds) updateFeed(ctx context.Context, definition *domainf
 		}
 
 		if err = evt.Sign(entity.PrivateKey); err != nil {
-			return errors.Wrap(err, "error signing the event")
+			return nil, errors.Wrap(err, "error signing the event")
 		}
 
-		//if evt.CreatedAt > nostr.Timestamp(int64(last)) {
-		//	last = uint32(evt.CreatedAt)
-		//}
-
-		events = append(events, evt)
-		if h.replayToRelays {
-			eventsToReplay = append(eventsToReplay, replayer.EventWithPrivateKey{Event: &evt, PrivateKey: entity.PrivateKey})
-		}
-	}
-
-	// todo wtf is this
-	// relayInstance.lastEmitted.Store(entity.URL, last)
-
-	var domainEvents []domain.Event
-	for _, event := range events {
-		domainEvent, err := domain.NewEvent(event)
+		domainEvent, err := domain.NewEvent(evt)
 		if err != nil {
-			return errors.Wrap(err, "error creating a domain event")
+			return nil, errors.Wrap(err, "error creating a domain event")
 		}
-		domainEvents = append(domainEvents, domainEvent)
+
+		events = append(events, domainEvent)
 	}
 
-	log.Printf("storing %d events for feed %s", len(domainEvents), definition.PublicKey().Hex())
-
-	if err := h.eventStorage.PutEvents(definition.PublicKey(), domainEvents); err != nil {
-		return errors.Wrap(err, "error saving events")
-	}
-
-	return nil
+	return events, nil
 }
 
-func (h *HandlerUpdateFeeds) makeMetadataEvent(definition *domainfeed.FeedDefinition, parsedFeed *gofeed.Feed, entity feed.Entity) (nostr.Event, error) {
+func (h *HandlerUpdateFeeds) makeMetadataEvent(definition *domainfeed.FeedDefinition, parsedFeed *gofeed.Feed, entity feed.Entity) (domain.Event, error) {
 	evt := feed.EntryFeedToSetMetadata(definition.PublicKey().Hex(), parsedFeed, entity.URL, h.enableAutoNIP05Registration, h.defaultProfilePictureUrl, h.mainDomainName)
 	if err := evt.Sign(entity.PrivateKey); err != nil {
-		return nostr.Event{}, errors.Wrap(err, "error signing the event")
+		return domain.Event{}, errors.Wrap(err, "error signing the event")
 	}
-	return evt, nil
+	domainMetadataEvent, err := domain.NewEvent(evt)
+	if err != nil {
+		return domain.Event{}, errors.Wrap(err, "error creating a domain event")
+	}
+	return domainMetadataEvent, nil
 }
 
 type definitionWithError struct {

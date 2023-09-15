@@ -38,10 +38,6 @@ var (
 		Name: "rsslay_processed_invalid_events_ops_total",
 		Help: "The total number of processed invalid events requests",
 	})
-	ListeningFiltersOps = promauto.NewCounter(prometheus.CounterOpts{
-		Name: "rsslay_processed_listening_filters_ops_total",
-		Help: "The total number of updated listening filters",
-	})
 	CacheHits = promauto.NewCounter(prometheus.CounterOpts{
 		Name: "rsslay_processed_cache_hits_ops_total",
 		Help: "The total number of cache hits",
