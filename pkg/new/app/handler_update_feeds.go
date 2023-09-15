@@ -11,9 +11,11 @@ import (
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/piraces/rsslay/pkg/events"
 	"github.com/piraces/rsslay/pkg/feed"
+	"github.com/piraces/rsslay/pkg/metrics"
 	domainfeed "github.com/piraces/rsslay/pkg/new/domain/feed"
 	domain "github.com/piraces/rsslay/pkg/new/domain/nostr"
 	"github.com/pkg/errors"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 const numWorkers = 10
@@ -103,6 +105,8 @@ func (h *HandlerUpdateFeeds) Handle(ctx context.Context) error {
 	}
 
 	log.Printf("updating feeds result success=%d error=%d", counterSuccess, counterError)
+	metrics.UpdateResults.With(prometheus.Labels{"result": "success"}).Set(float64(counterSuccess))
+	metrics.UpdateResults.With(prometheus.Labels{"result": "error"}).Set(float64(counterError))
 
 	return resultErr
 }
