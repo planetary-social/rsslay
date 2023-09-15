@@ -63,7 +63,7 @@ var (
 		Help: "Number of error replayed events by relay.",
 	}, []string{"relay"})
 	UpdateResults = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "rsslay_update_results_count",
+		Name: "rsslay_update_results",
 		Help: "Feed update results",
 	}, []string{"result"})
 )
