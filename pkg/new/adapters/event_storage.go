@@ -10,7 +10,7 @@ import (
 
 type EventStorage struct {
 	events     map[string][]domain.Event
-	eventsLock sync.Mutex
+	eventsLock sync.RWMutex
 }
 
 func NewEventStorage() *EventStorage {
@@ -36,9 +36,8 @@ func (e *EventStorage) PutEvents(author domain.PublicKey, events []domain.Event)
 }
 
 func (e *EventStorage) GetEvents(filter domain.Filter) ([]domain.Event, error) {
-	// todo optimize
-	e.eventsLock.Lock()
-	defer e.eventsLock.Unlock()
+	e.eventsLock.RLock()
+	defer e.eventsLock.RUnlock()
 
 	// todo optimize
 	var results []domain.Event
