@@ -68,7 +68,6 @@ func (f *Handler) HandleWebpage(w http.ResponseWriter, r *http.Request, mainDoma
 		return
 	}
 
-	// todo app handler
 	randomFeedDefinitions, err := f.app.GetRandomFeeds.Handle(50)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
