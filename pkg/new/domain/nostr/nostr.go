@@ -2,6 +2,7 @@ package nostr
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"time"
@@ -16,6 +17,7 @@ import (
 const (
 	publicKeyBytesLen  = 32
 	privateKeyBytesLen = btcec.PrivKeyBytesLen
+	idBytesLen         = sha256.Size
 )
 
 type Filter struct {
@@ -27,17 +29,13 @@ func NewFilter(filter *nostr.Filter) Filter {
 		filter: filter,
 	}
 }
-func (f Filter) Libfilter() *nostr.Filter {
-
-	return f.filter
-}
 
 func (f Filter) Matches(event Event) bool {
-	libevent := event.Libevent()
-	return f.Libfilter().Matches(&libevent)
+	return f.filter.Matches(&event.event)
 }
 
 type Event struct {
+	id        ID
 	publicKey PublicKey
 	event     nostr.Event
 }
@@ -47,14 +45,21 @@ func NewEvent(event nostr.Event) (Event, error) {
 	if err != nil {
 		return Event{}, errors.Wrap(err, "error parsing the public key")
 	}
+
+	id, err := NewIDFromHex(event.ID)
+	if err != nil {
+		return Event{}, errors.Wrap(err, "error parsing the id")
+	}
+
 	return Event{
+		id:        id,
 		publicKey: publicKey,
 		event:     event,
 	}, nil
 }
 
-func (e Event) Libevent() nostr.Event {
-	return e.event
+func (e Event) ID() ID {
+	return e.id
 }
 
 func (e Event) PublicKey() PublicKey {
@@ -63,6 +68,31 @@ func (e Event) PublicKey() PublicKey {
 
 func (e Event) CreatedAt() time.Time {
 	return e.event.CreatedAt.Time()
+}
+
+func (e Event) Libevent() nostr.Event {
+	return e.event
+}
+
+type ID struct {
+	b []byte
+}
+
+func NewIDFromHex(s string) (ID, error) {
+	b, err := hex.DecodeString(s)
+	if err != nil {
+		return ID{}, errors.Wrap(err, "error decoding hex string")
+	}
+
+	if l := len(b); l != idBytesLen {
+		return ID{}, fmt.Errorf("invalid event id length '%d'", l)
+	}
+
+	return ID{b: b}, nil
+}
+
+func (id ID) Hex() string {
+	return hex.EncodeToString(id.b)
 }
 
 type PublicKey struct {

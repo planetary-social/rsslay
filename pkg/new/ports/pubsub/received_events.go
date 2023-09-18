@@ -30,7 +30,7 @@ func NewReceivedEventSubscriber(
 func (p *ReceivedEventSubscriber) Run(ctx context.Context) {
 	for event := range p.pubsub.Subscribe(ctx) {
 		if err := p.handler.Handle(ctx, event); err != nil {
-			log.Printf("error passing event '%s' to event created handler: %s", event.Libevent().ID, err)
+			log.Printf("error passing event '%s' to event created handler: %s", event.ID().Hex(), err)
 		}
 	}
 }
