@@ -3,6 +3,7 @@ package nostr
 import (
 	"bytes"
 	"encoding/hex"
+	"fmt"
 	"time"
 
 	"github.com/btcsuite/btcd/btcec/v2"
@@ -10,6 +11,11 @@ import (
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/nbd-wtf/go-nostr/nip19"
 	"github.com/pkg/errors"
+)
+
+const (
+	publicKeyBytesLen  = 32
+	privateKeyBytesLen = btcec.PrivKeyBytesLen
 )
 
 type Filter struct {
@@ -69,7 +75,9 @@ func NewPublicKeyFromHex(s string) (PublicKey, error) {
 		return PublicKey{}, errors.Wrap(err, "error decoding hex string")
 	}
 
-	// todo len check
+	if l := len(b); l != publicKeyBytesLen {
+		return PublicKey{}, fmt.Errorf("invalid public key length '%d'", l)
+	}
 
 	return PublicKey{b: b}, nil
 }
@@ -106,7 +114,9 @@ func NewPrivateKeyFromHex(s string) (PrivateKey, error) {
 		return PrivateKey{}, errors.Wrap(err, "error decoding hex string")
 	}
 
-	// todo len check
+	if l := len(b); l != privateKeyBytesLen {
+		return PrivateKey{}, fmt.Errorf("invalid private key length '%d'", l)
+	}
 
 	return PrivateKey{b: b}, nil
 }
