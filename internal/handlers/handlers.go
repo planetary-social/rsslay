@@ -9,17 +9,14 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"strings"
 
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/nbd-wtf/go-nostr"
 	"github.com/nbd-wtf/go-nostr/nip05"
-	"github.com/nbd-wtf/go-nostr/nip19"
 	"github.com/piraces/rsslay/pkg/feed"
-	"github.com/piraces/rsslay/pkg/helpers"
 	"github.com/piraces/rsslay/pkg/metrics"
+	"github.com/piraces/rsslay/pkg/new/app"
+	domainfeed "github.com/piraces/rsslay/pkg/new/domain/feed"
 	"github.com/piraces/rsslay/web/templates"
-	"github.com/prometheus/client_golang/prometheus"
 )
 
 var t = template.Must(template.ParseFS(templates.Templates, "*.tmpl"))
@@ -40,54 +37,53 @@ type PageData struct {
 	MainDomainName string
 }
 
-func HandleWebpage(w http.ResponseWriter, r *http.Request, db *sql.DB, mainDomainName *string) {
+type FeedDefnitionStorage interface {
+	ListRandom(n int) ([]domainfeed.FeedDefinition, error)
+	Search()
+}
+
+type Handler struct {
+	app app.App
+}
+
+func NewHandler(
+	app app.App,
+) *Handler {
+	return &Handler{
+		app: app,
+	}
+}
+
+func (f *Handler) HandleWebpage(w http.ResponseWriter, r *http.Request, mainDomainName *string) {
 	mustRedirect := handleOtherRegion(w, r)
 	if mustRedirect {
 		return
 	}
 
 	metrics.IndexRequests.Inc()
-	var count uint64
-	row := db.QueryRow(`SELECT count(*) FROM feeds`)
-	err := row.Scan(&count)
+
+	totalCount, err := f.app.GetTotalFeedCount.Handle()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	var items []Entry
-	rows, err := db.Query(`SELECT publickey, url FROM feeds ORDER BY RANDOM() LIMIT 50`)
+	randomFeedDefinitions, err := f.app.GetRandomFeeds.Handle(50)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	for rows.Next() {
-		var entry Entry
-		if err := rows.Scan(&entry.PubKey, &entry.Url); err != nil {
-			log.Printf("[ERROR] failed to scan row iterating feeds: %v", err)
-			metrics.AppErrors.With(prometheus.Labels{"type": "SQL_SCAN"}).Inc()
-			continue
-		}
-
-		entry.NPubKey, _ = nip19.EncodePublicKey(entry.PubKey)
-		items = append(items, entry)
-	}
-	if err := rows.Close(); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	data := PageData{
-		Count:          count,
-		Entries:        items,
+		Count:          uint64(totalCount),
+		Entries:        toEntries(randomFeedDefinitions),
 		MainDomainName: *mainDomainName,
 	}
 
 	_ = t.ExecuteTemplate(w, "index.html.tmpl", data)
 }
 
-func HandleSearch(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+func (f *Handler) HandleSearch(w http.ResponseWriter, r *http.Request) {
 	mustRedirect := handleOtherRegion(w, r)
 	if mustRedirect {
 		return
@@ -100,60 +96,42 @@ func HandleSearch(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		return
 	}
 
-	var count uint64
-	row := db.QueryRow(`SELECT count(*) FROM feeds`)
-	err := row.Scan(&count)
+	totalCount, err := f.app.GetTotalFeedCount.Handle()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	var items []Entry
-	rows, err := db.Query(`SELECT publickey, url FROM feeds WHERE url like '%' || $1 || '%' LIMIT 50`, query)
+	feedDefinitions, err := f.app.SearchFeeds.Handle(query, 50)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	for rows.Next() {
-		var entry Entry
-		if err := rows.Scan(&entry.PubKey, &entry.Url); err != nil {
-			log.Printf("[ERROR] failed to scan row iterating feeds searching: %v", err)
-			metrics.AppErrors.With(prometheus.Labels{"type": "SQL_SCAN"}).Inc()
-			continue
-		}
-
-		entry.NPubKey, _ = nip19.EncodePublicKey(entry.PubKey)
-		items = append(items, entry)
-	}
-	if err := rows.Close(); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	data := PageData{
-		Count:         count,
-		FilteredCount: uint64(len(items)),
-		Entries:       items,
+		Count:         uint64(totalCount),
+		FilteredCount: uint64(len(feedDefinitions)),
+		Entries:       toEntries(feedDefinitions),
 	}
 
 	_ = t.ExecuteTemplate(w, "search.html.tmpl", data)
 }
 
-func HandleCreateFeed(w http.ResponseWriter, r *http.Request, db *sql.DB, secret *string, dsn *string) {
+func (f *Handler) HandleCreateFeed(w http.ResponseWriter, r *http.Request, dsn *string) {
 	mustRedirect := handleRedirectToPrimaryNode(w, dsn)
 	if mustRedirect {
 		return
 	}
 
 	metrics.CreateRequests.Inc()
-	entry := createFeedEntry(r, db, secret)
+
+	entry := f.createFeed(r)
 	_ = t.ExecuteTemplate(w, "created.html.tmpl", entry)
 }
 
-func HandleApiFeed(w http.ResponseWriter, r *http.Request, db *sql.DB, secret *string, dsn *string) {
+func (f *Handler) HandleApiFeed(w http.ResponseWriter, r *http.Request, dsn *string) {
 	if r.Method == http.MethodGet || r.Method == http.MethodPost {
-		handleCreateFeedEntry(w, r, db, secret, dsn)
+		f.handleCreateFeedEntry(w, r, dsn)
 	} else {
 		http.Error(w, "Method not supported", http.StatusMethodNotAllowed)
 	}
@@ -191,14 +169,16 @@ func HandleNip05(w http.ResponseWriter, r *http.Request, db *sql.DB, ownerPubKey
 	_, _ = w.Write(response)
 }
 
-func handleCreateFeedEntry(w http.ResponseWriter, r *http.Request, db *sql.DB, secret *string, dsn *string) {
+func (f *Handler) handleCreateFeedEntry(w http.ResponseWriter, r *http.Request, dsn *string) {
 	mustRedirect := handleRedirectToPrimaryNode(w, dsn)
 	if mustRedirect {
 		return
 	}
 
 	metrics.CreateRequestsAPI.Inc()
-	entry := createFeedEntry(r, db, secret)
+
+	entry := f.createFeed(r)
+
 	w.Header().Set("Content-Type", "application/json")
 
 	if entry.ErrorCode >= 400 {
@@ -209,6 +189,30 @@ func handleCreateFeedEntry(w http.ResponseWriter, r *http.Request, db *sql.DB, s
 
 	response, _ := json.Marshal(entry)
 	_, _ = w.Write(response)
+}
+
+func (f *Handler) createFeed(r *http.Request) Entry {
+	urlParam := r.URL.Query().Get("url")
+
+	address, err := domainfeed.NewAddress(urlParam)
+	if err != nil {
+		return Entry{
+			Error:        true,
+			ErrorMessage: err.Error(),
+			ErrorCode:    http.StatusBadRequest,
+		}
+	}
+
+	feedDefinition, err := f.app.CreateFeedDefinition.Handle(address)
+	if err != nil {
+		return Entry{
+			Error:        true,
+			ErrorMessage: err.Error(),
+			ErrorCode:    http.StatusInternalServerError,
+		}
+	}
+
+	return toEntry(*feedDefinition)
 }
 
 func handleOtherRegion(w http.ResponseWriter, r *http.Request) bool {
@@ -238,72 +242,18 @@ func handleRedirectToPrimaryNode(w http.ResponseWriter, dsn *string) bool {
 	return false
 }
 
-func createFeedEntry(r *http.Request, db *sql.DB, secret *string) *Entry {
-	urlParam := r.URL.Query().Get("url")
-	entry := Entry{
-		Error: false,
+func toEntries(definitions []*domainfeed.FeedDefinition) []Entry {
+	var entries []Entry
+	for _, definition := range definitions {
+		entries = append(entries, toEntry(*definition))
 	}
-
-	if !helpers.IsValidHttpUrl(urlParam) {
-		log.Printf("[DEBUG] tried to create feed from invalid feed url '%q' skipping...", urlParam)
-		entry.ErrorCode = http.StatusBadRequest
-		entry.Error = true
-		entry.ErrorMessage = "Invalid URL provided (must be in absolute format and with https or https scheme)..."
-		return &entry
-	}
-
-	feedUrl := feed.GetFeedURL(urlParam)
-	if feedUrl == "" {
-		entry.ErrorCode = http.StatusBadRequest
-		entry.Error = true
-		entry.ErrorMessage = "Could not find a feed URL in there..."
-		return &entry
-	}
-
-	parsedFeed, err := feed.ParseFeed(feedUrl)
-	if err != nil {
-		entry.ErrorCode = http.StatusBadRequest
-		entry.Error = true
-		entry.ErrorMessage = "Bad feed: " + err.Error()
-		return &entry
-	}
-
-	sk := feed.PrivateKeyFromFeed(feedUrl, *secret)
-	publicKey, err := nostr.GetPublicKey(sk)
-	if err != nil {
-		entry.ErrorCode = http.StatusInternalServerError
-		entry.Error = true
-		entry.ErrorMessage = "bad private key: " + err.Error()
-		return &entry
-	}
-
-	publicKey = strings.TrimSpace(publicKey)
-	isNitterFeed := strings.Contains(parsedFeed.Description, "Twitter feed")
-	defer insertFeed(err, feedUrl, publicKey, sk, isNitterFeed, db)
-
-	entry.Url = feedUrl
-	entry.PubKey = publicKey
-	entry.NPubKey, _ = nip19.EncodePublicKey(publicKey)
-	return &entry
+	return entries
 }
 
-func insertFeed(err error, feedUrl string, publicKey string, sk string, nitter bool, db *sql.DB) {
-	row := db.QueryRow("SELECT privatekey, url FROM feeds WHERE publickey=$1", publicKey)
-
-	var entity feed.Entity
-	err = row.Scan(&entity.PrivateKey, &entity.URL)
-	if err != nil && err == sql.ErrNoRows {
-		log.Printf("[DEBUG] not found feed at url %q as publicKey %s", feedUrl, publicKey)
-		if _, err := db.Exec(`INSERT INTO feeds (publickey, privatekey, url, nitter) VALUES (?, ?, ?, ?)`, publicKey, sk, feedUrl, nitter); err != nil {
-			log.Printf("[ERROR] failure: %v", err)
-			metrics.AppErrors.With(prometheus.Labels{"type": "SQL_WRITE"}).Inc()
-		} else {
-			log.Printf("[DEBUG] saved feed at url %q as publicKey %s", feedUrl, publicKey)
-		}
-	} else if err != nil {
-		metrics.AppErrors.With(prometheus.Labels{"type": "SQL_SCAN"}).Inc()
-		log.Fatalf("[ERROR] failed when trying to retrieve row with pubkey '%s': %v", publicKey, err)
-	} else {
-		log.Printf("[DEBUG] found feed at url %q as publicKey %s", feedUrl, publicKey)
+func toEntry(definition domainfeed.FeedDefinition) Entry {
+	return Entry{
+		PubKey:  definition.PublicKey().Hex(),
+		NPubKey: definition.PublicKey().Nip19(),
+		Url:     definition.Address().String(),
 	}
 }
