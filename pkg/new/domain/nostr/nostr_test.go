@@ -2,10 +2,10 @@ package nostr_test
 
 import (
 	"encoding/hex"
-	"github.com/btcsuite/btcd/btcec/v2"
-	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"testing"
 
+	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/piraces/rsslay/pkg/new/domain/nostr"
 	"github.com/stretchr/testify/require"
 )

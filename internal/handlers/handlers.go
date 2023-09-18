@@ -14,7 +14,6 @@ import (
 	"github.com/nbd-wtf/go-nostr/nip05"
 	"github.com/piraces/rsslay/pkg/feed"
 	"github.com/piraces/rsslay/pkg/metrics"
-	"github.com/piraces/rsslay/pkg/new/adapters"
 	"github.com/piraces/rsslay/pkg/new/app"
 	domainfeed "github.com/piraces/rsslay/pkg/new/domain/feed"
 	"github.com/piraces/rsslay/web/templates"
@@ -44,17 +43,14 @@ type FeedDefnitionStorage interface {
 }
 
 type Handler struct {
-	feedDefinitionStorage *adapters.FeedDefinitionStorage // todo REMOVE!!
-	app                   app.App
+	app app.App
 }
 
 func NewHandler(
-	feedDefinitionStorage *adapters.FeedDefinitionStorage,
 	app app.App,
 ) *Handler {
 	return &Handler{
-		feedDefinitionStorage: feedDefinitionStorage,
-		app:                   app,
+		app: app,
 	}
 }
 
@@ -66,15 +62,14 @@ func (f *Handler) HandleWebpage(w http.ResponseWriter, r *http.Request, mainDoma
 
 	metrics.IndexRequests.Inc()
 
-	// todo app handler
-	totalCount, err := f.feedDefinitionStorage.CountTotal()
+	totalCount, err := f.app.GetTotalFeedCount.Handle()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	// todo app handler
-	randomFeedDefinitions, err := f.feedDefinitionStorage.ListRandom(50)
+	randomFeedDefinitions, err := f.app.GetRandomFeeds.Handle(50)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -102,15 +97,13 @@ func (f *Handler) HandleSearch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// todo app handler
-	totalCount, err := f.feedDefinitionStorage.CountTotal()
+	totalCount, err := f.app.GetTotalFeedCount.Handle()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// todo app handler
-	feedDefinitions, err := f.feedDefinitionStorage.Search(query, 50)
+	feedDefinitions, err := f.app.SearchFeeds.Handle(query, 50)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

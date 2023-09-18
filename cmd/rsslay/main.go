@@ -180,6 +180,9 @@ func (r *Relay) Init() error {
 	)
 	handlerGetEvents := app.NewHandlerGetEvents(eventStorage)
 	handlerOnNewEventCreated := app.NewHandlerOnNewEventCreated(r.updates)
+	handlerGetTotalFeedCount := app.NewHandlerGetTotalFeedCount(feedDefinitionStorage)
+	handlerGetRandomFeeds := app.NewHandlerGetRandomFeeds(feedDefinitionStorage)
+	handlerSearchFeeds := app.NewHandlerSearchFeeds(feedDefinitionStorage)
 
 	updateFeedsTimer := ports.NewUpdateFeedsTimer(handlerUpdateFeeds)
 	receivedEventSubscriber := pubsub2.NewReceivedEventSubscriber(receivedEventPubSub, handlerOnNewEventCreated)
@@ -188,10 +191,13 @@ func (r *Relay) Init() error {
 		CreateFeedDefinition: handlerCreateFeedDefinition,
 		UpdateFeeds:          handlerUpdateFeeds,
 		GetEvents:            handlerGetEvents,
+		GetTotalFeedCount:    handlerGetTotalFeedCount,
+		GetRandomFeeds:       handlerGetRandomFeeds,
+		SearchFeeds:          handlerSearchFeeds,
 	}
 
 	r.db = db
-	r.handler = handlers.NewHandler(feedDefinitionStorage, app)
+	r.handler = handlers.NewHandler(app)
 	r.store = newStore(app)
 
 	go updateFeedsTimer.Run(ctx)

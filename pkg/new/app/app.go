@@ -10,12 +10,19 @@ import (
 type App struct {
 	CreateFeedDefinition *HandlerCreateFeedDefinition
 	UpdateFeeds          *HandlerUpdateFeeds
-	GetEvents            *HandlerGetEvents
+
+	GetEvents         *HandlerGetEvents
+	GetTotalFeedCount *HandlerGetTotalFeedCount
+	GetRandomFeeds    *HandlerGetRandomFeeds
+	SearchFeeds       *HandlerSearchFeeds
 }
 
 type FeedDefinitionStorage interface {
 	Put(definition *feeddomain.FeedDefinition) error
+	CountTotal() (int, error)
 	List() ([]*feeddomain.FeedDefinition, error)
+	ListRandom(limit int) ([]*feeddomain.FeedDefinition, error)
+	Search(query string, limit int) ([]*feeddomain.FeedDefinition, error)
 }
 
 type EventStorage interface {
